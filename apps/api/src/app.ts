@@ -1,10 +1,8 @@
-import Fastify from "fastify";
+import Fastify, { type FastifyServerOptions } from "fastify";
 
 import { healthRoutes } from "./modules/health/health.routes.js";
 
-type BuildAppOptions = {
-  logger?: boolean;
-};
+type BuildAppOptions = Pick<FastifyServerOptions, "logger">;
 
 export function buildApp(options: BuildAppOptions = {}) {
   const app = Fastify({

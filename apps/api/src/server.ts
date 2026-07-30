@@ -1,11 +1,15 @@
 import { buildApp } from "./app.js";
+import { parseApiEnv } from "./config/env.js";
 
-const host = process.env.HOST ?? "0.0.0.0";
-const port = Number.parseInt(process.env.PORT ?? "4000", 10);
-const app = buildApp();
+const env = parseApiEnv(process.env);
+const app = buildApp({
+  logger: {
+    level: env.LOG_LEVEL,
+  },
+});
 
 try {
-  await app.listen({ host, port });
+  await app.listen({ host: env.HOST, port: env.PORT });
 } catch (error) {
   app.log.error(error);
   process.exit(1);
