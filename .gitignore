@@ -6,6 +6,7 @@ node_modules/
 dist/
 coverage/
 .turbo/
+next-env.d.ts
 
 # Environment files and local secrets
 .env

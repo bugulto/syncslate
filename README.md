@@ -117,3 +117,10 @@ packages/
 
 Database, authentication, realtime collaboration, and interview-room features
 are not implemented yet.
+
+## Learning material
+
+If you are new to the stack, read the
+[Development stack and onboarding guide](docs/onboarding/milestone-0-stack-guide.md). It
+explains the tools, repository structure, request flow, tests, and commands
+used to build the current foundation.
