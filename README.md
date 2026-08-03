@@ -10,6 +10,7 @@ The repository currently contains the Milestone 0 application foundation:
 - A Next.js web application.
 - A Fastify API with a health endpoint.
 - Shared runtime contracts using Zod.
+- A Drizzle database package with validated PostgreSQL connections.
 - TypeScript, Tailwind CSS, Vitest, ESLint, pnpm workspaces, and Turborepo.
 
 ## Prerequisites
@@ -113,8 +114,24 @@ apps/
   web/                 Next.js frontend
 packages/
   contracts/           Shared Zod schemas and TypeScript types
+  database/            Drizzle configuration and PostgreSQL connection
 ```
 
-Database, authentication, realtime collaboration, and interview-room features
-are not implemented yet.
+Database product schemas, authentication, realtime collaboration, and
+interview-room features are not implemented yet.
 
+## Database commands
+
+With local Supabase running and `apps/api/.env` configured, verify PostgreSQL:
+
+```bash
+pnpm db:check
+```
+
+Migration commands are available for later schema milestones:
+
+```bash
+pnpm db:generate
+pnpm db:migrate
+pnpm db:studio
+```

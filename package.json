@@ -9,6 +9,10 @@
   },
   "scripts": {
     "build": "turbo run build",
+    "db:check": "pnpm --filter @syncslate/database db:check",
+    "db:generate": "pnpm --filter @syncslate/database db:generate",
+    "db:migrate": "pnpm --filter @syncslate/database db:migrate",
+    "db:studio": "pnpm --filter @syncslate/database db:studio",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
