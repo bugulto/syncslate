@@ -4,11 +4,18 @@ import { parseApiEnv } from "./env.js";
 
 describe("parseApiEnv", () => {
   it("provides safe local defaults", () => {
-    expect(parseApiEnv({})).toEqual({
+    expect(
+      parseApiEnv({
+        DATABASE_URL:
+          "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+      }),
+    ).toEqual({
       NODE_ENV: "development",
       HOST: "0.0.0.0",
       PORT: 4000,
       LOG_LEVEL: "info",
+      DATABASE_URL:
+        "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
     });
   });
 
@@ -19,18 +26,27 @@ describe("parseApiEnv", () => {
         HOST: "127.0.0.1",
         PORT: "8080",
         LOG_LEVEL: "warn",
+        DATABASE_URL: "postgres://user:password@database.example.com/app",
       }),
     ).toEqual({
       NODE_ENV: "production",
       HOST: "127.0.0.1",
       PORT: 8080,
       LOG_LEVEL: "warn",
+      DATABASE_URL: "postgres://user:password@database.example.com/app",
     });
   });
 
   it("rejects invalid values", () => {
-    expect(() => parseApiEnv({ PORT: "70000" })).toThrow(
-      "Invalid API environment",
+    expect(() =>
+      parseApiEnv({
+        PORT: "70000",
+        DATABASE_URL:
+          "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+      }),
+    ).toThrow("Invalid API environment");
+    expect(() => parseApiEnv({ DATABASE_URL: "https://example.com" })).toThrow(
+      "Must be a PostgreSQL connection URL",
     );
   });
 });

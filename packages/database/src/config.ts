@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const postgresUrlSchema = z
+export const postgresConnectionStringSchema = z
   .string()
   .trim()
   .url()
@@ -10,7 +10,7 @@ const postgresUrlSchema = z
   }, "Must be a PostgreSQL connection URL");
 
 const databaseConfigSchema = z.object({
-  connectionString: postgresUrlSchema,
+  connectionString: postgresConnectionStringSchema,
   maxConnections: z.number().int().min(1).max(20).default(10),
 });
 

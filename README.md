@@ -37,20 +37,20 @@ pnpm install --frozen-lockfile
 
 ## Environment configuration
 
-No environment files are required for the current local application. The API
-uses these defaults:
+The API requires a PostgreSQL connection for readiness checks. Copy the API
+template after starting local Supabase:
+
+```bash
+cp apps/api/.env.example apps/api/.env
+```
+
+The API uses these non-database defaults:
 
 ```text
 NODE_ENV=development
 HOST=0.0.0.0
 PORT=4000
 LOG_LEVEL=info
-```
-
-To override API settings:
-
-```bash
-cp apps/api/.env.example apps/api/.env
 ```
 
 The web application does not consume environment variables yet. Its template
@@ -79,11 +79,13 @@ Local services:
 | Web | http://localhost:3000 |
 | API | http://localhost:4000 |
 | API health | http://localhost:4000/api/v1/health |
+| API readiness | http://localhost:4000/api/v1/ready |
 
 Verify the API from another terminal:
 
 ```bash
 curl -i http://localhost:4000/api/v1/health
+curl -i http://localhost:4000/api/v1/ready
 ```
 
 Run one application at a time:

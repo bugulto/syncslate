@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
-    "dev": "pnpm --filter @syncslate/contracts build && tsx watch --env-file-if-exists=.env src/server.ts",
+    "dev": "pnpm --filter @syncslate/contracts build && pnpm --filter @syncslate/database build && tsx watch --env-file-if-exists=.env src/server.ts",
     "lint": "eslint src --max-warnings=0",
     "start": "node --env-file-if-exists=.env dist/server.js",
     "test": "vitest run",
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@syncslate/contracts": "workspace:*",
+    "@syncslate/database": "workspace:*",
     "fastify": "^5.10.0",
     "zod": "^4.4.3"
   },

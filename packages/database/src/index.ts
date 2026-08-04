@@ -5,5 +5,6 @@ export {
 } from "./client.js";
 export {
   parseDatabaseConfig,
+  postgresConnectionStringSchema,
   type DatabaseConfig,
 } from "./config.js";

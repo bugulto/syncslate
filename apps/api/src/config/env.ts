@@ -1,3 +1,4 @@
+import { postgresConnectionStringSchema } from "@syncslate/database";
 import { z } from "zod";
 
 const apiEnvSchema = z.object({
@@ -9,6 +10,7 @@ const apiEnvSchema = z.object({
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
+  DATABASE_URL: postgresConnectionStringSchema,
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
