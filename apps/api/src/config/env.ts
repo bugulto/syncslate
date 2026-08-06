@@ -10,6 +10,11 @@ const apiEnvSchema = z.object({
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
+  CORS_ALLOWED_ORIGINS: z
+    .string()
+    .default("http://localhost:3000")
+    .transform((value) => value.split(",").map((origin) => origin.trim()))
+    .pipe(z.array(z.url()).min(1)),
   DATABASE_URL: postgresConnectionStringSchema,
 });
 

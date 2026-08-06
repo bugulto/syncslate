@@ -8,7 +8,8 @@ session replay.
 The repository currently contains the Milestone 0 application foundation:
 
 - A Next.js web application.
-- A Fastify API with a health endpoint.
+- A Fastify API with health and database-readiness endpoints.
+- A landing page that reports the API connection status.
 - Shared runtime contracts using Zod.
 - A Drizzle database package with validated PostgreSQL connections.
 - TypeScript, Tailwind CSS, Vitest, ESLint, pnpm workspaces, and Turborepo.
@@ -53,8 +54,7 @@ PORT=4000
 LOG_LEVEL=info
 ```
 
-The web application does not consume environment variables yet. Its template
-is ready for later API and Supabase integration:
+The web application reads its API base URL from `NEXT_PUBLIC_API_URL`:
 
 ```bash
 cp apps/web/.env.example apps/web/.env.local

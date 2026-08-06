@@ -12,6 +12,7 @@
     "typecheck": "tsc --project tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@fastify/cors": "^11.3.0",
     "@syncslate/contracts": "workspace:*",
     "@syncslate/database": "workspace:*",
     "fastify": "^5.10.0",

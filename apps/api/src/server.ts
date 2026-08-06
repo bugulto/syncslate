@@ -14,6 +14,7 @@ const app = buildApp({
   logger: {
     level: env.LOG_LEVEL,
   },
+  corsAllowedOrigins: env.CORS_ALLOWED_ORIGINS,
   checkReadiness: () => checkDatabaseConnection(database),
 });
 

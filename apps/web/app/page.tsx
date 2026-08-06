@@ -1,4 +1,11 @@
+import { ApiHealthStatus } from "./api-health-status";
+import { parseWebEnv } from "../lib/env";
+
 export default function HomePage() {
+  const env = parseWebEnv({
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  });
+
   return (
     <main className="grid min-h-screen place-items-center bg-slate-950 px-6 py-16 text-slate-100">
       <section
@@ -17,6 +24,7 @@ export default function HomePage() {
         <p className="mt-6 text-lg leading-8 text-slate-300">
           Real-time technical interviews, in one focused workspace.
         </p>
+        <ApiHealthStatus apiUrl={env.NEXT_PUBLIC_API_URL} />
       </section>
     </main>
   );
