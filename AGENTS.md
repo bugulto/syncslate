@@ -733,7 +733,7 @@ session:<sessionId>:code
 The shared code is stored in:
 
 ```ts
-ydoc.getText("monaco")
+ydoc.getText("monaco");
 ```
 
 ### 11.2 Client integration

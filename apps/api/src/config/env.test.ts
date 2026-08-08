@@ -6,8 +6,7 @@ describe("parseApiEnv", () => {
   it("provides safe local defaults", () => {
     expect(
       parseApiEnv({
-        DATABASE_URL:
-          "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+        DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
       }),
     ).toEqual({
       NODE_ENV: "development",
@@ -15,8 +14,7 @@ describe("parseApiEnv", () => {
       PORT: 4000,
       LOG_LEVEL: "info",
       CORS_ALLOWED_ORIGINS: ["http://localhost:3000"],
-      DATABASE_URL:
-        "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
     });
   });
 
@@ -48,8 +46,7 @@ describe("parseApiEnv", () => {
     expect(() =>
       parseApiEnv({
         PORT: "70000",
-        DATABASE_URL:
-          "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+        DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
       }),
     ).toThrow("Invalid API environment");
     expect(() => parseApiEnv({ DATABASE_URL: "https://example.com" })).toThrow(
@@ -58,8 +55,7 @@ describe("parseApiEnv", () => {
     expect(() =>
       parseApiEnv({
         CORS_ALLOWED_ORIGINS: "not-a-url",
-        DATABASE_URL:
-          "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+        DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
       }),
     ).toThrow("Invalid API environment");
   });

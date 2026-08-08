@@ -74,12 +74,12 @@ pnpm dev
 
 Local services:
 
-| Service | URL |
-| --- | --- |
-| Web | http://localhost:3000 |
-| API | http://localhost:4000 |
-| API health | http://localhost:4000/api/v1/health |
-| API readiness | http://localhost:4000/api/v1/ready |
+| Service       | URL                                 |
+| ------------- | ----------------------------------- |
+| Web           | http://localhost:3000               |
+| API           | http://localhost:4000               |
+| API health    | http://localhost:4000/api/v1/health |
+| API readiness | http://localhost:4000/api/v1/ready  |
 
 Verify the API from another terminal:
 

@@ -6,7 +6,8 @@ describe("parseDatabaseConfig", () => {
   it("applies a safe local pool-size default", () => {
     expect(
       parseDatabaseConfig({
-        connectionString: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+        connectionString:
+          "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
       }),
     ).toEqual({
       connectionString:
@@ -18,16 +19,17 @@ describe("parseDatabaseConfig", () => {
   it("accepts an explicit pool size", () => {
     expect(
       parseDatabaseConfig({
-        connectionString: "postgres://postgres:postgres@localhost:5432/postgres",
+        connectionString:
+          "postgres://postgres:postgres@localhost:5432/postgres",
         maxConnections: 4,
       }).maxConnections,
     ).toBe(4);
   });
 
   it("rejects missing or non-PostgreSQL URLs", () => {
-    expect(() =>
-      parseDatabaseConfig({ connectionString: undefined }),
-    ).toThrow("Invalid database configuration");
+    expect(() => parseDatabaseConfig({ connectionString: undefined })).toThrow(
+      "Invalid database configuration",
+    );
     expect(() =>
       parseDatabaseConfig({ connectionString: "https://example.com" }),
     ).toThrow("Must be a PostgreSQL connection URL");

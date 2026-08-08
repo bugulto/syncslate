@@ -20,9 +20,7 @@ const apiEnvSchema = z.object({
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
 
-export function parseApiEnv(
-  input: Record<string, string | undefined>,
-): ApiEnv {
+export function parseApiEnv(input: Record<string, string | undefined>): ApiEnv {
   const result = apiEnvSchema.safeParse(input);
 
   if (!result.success) {

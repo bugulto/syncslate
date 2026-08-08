@@ -15,8 +15,8 @@ describe("parseWebEnv", () => {
 
   it("rejects a missing or invalid API URL", () => {
     expect(() => parseWebEnv({})).toThrow("Invalid web environment");
-    expect(() =>
-      parseWebEnv({ NEXT_PUBLIC_API_URL: "not-a-url" }),
-    ).toThrow("Invalid web environment");
+    expect(() => parseWebEnv({ NEXT_PUBLIC_API_URL: "not-a-url" })).toThrow(
+      "Invalid web environment",
+    );
   });
 });

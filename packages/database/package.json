@@ -17,6 +17,7 @@
     "db:studio": "drizzle-kit studio",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
+    "test:unit": "vitest run",
     "typecheck": "tsc --project tsconfig.json --noEmit"
   },
   "dependencies": {

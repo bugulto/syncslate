@@ -1,7 +1,4 @@
-import {
-  checkDatabaseConnection,
-  createDatabaseClient,
-} from "./client.js";
+import { checkDatabaseConnection, createDatabaseClient } from "./client.js";
 
 const client = createDatabaseClient({
   connectionString: process.env.DATABASE_URL,

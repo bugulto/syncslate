@@ -6,6 +6,9 @@ node_modules/
 dist/
 coverage/
 .turbo/
+playwright-report/
+test-results/
+blob-report/
 next-env.d.ts
 
 # Environment files and local secrets
@@ -26,4 +29,3 @@ pnpm-debug.log*
 *.tsbuildinfo
 
 docs
-

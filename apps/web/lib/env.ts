@@ -6,9 +6,7 @@ const webEnvSchema = z.object({
 
 export type WebEnv = z.infer<typeof webEnvSchema>;
 
-export function parseWebEnv(
-  input: Record<string, string | undefined>,
-): WebEnv {
+export function parseWebEnv(input: Record<string, string | undefined>): WebEnv {
   const result = webEnvSchema.safeParse(input);
 
   if (!result.success) {
