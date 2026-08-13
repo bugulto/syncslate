@@ -8,3 +8,11 @@ export {
   postgresConnectionStringSchema,
   type DatabaseConfig,
 } from "./config.js";
+export {
+  createProfileIfMissing,
+  findProfileByUserId,
+  updateProfileMetadata,
+  type CreateProfileIfMissingInput,
+  type UpdateProfileMetadataInput,
+} from "./repositories/profile.repository.js";
+export { profiles, type NewProfile, type Profile } from "./schema.js";
