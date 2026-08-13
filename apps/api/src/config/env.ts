@@ -16,6 +16,8 @@ const apiEnvSchema = z.object({
     .transform((value) => value.split(",").map((origin) => origin.trim()))
     .pipe(z.array(z.url()).min(1)),
   DATABASE_URL: postgresConnectionStringSchema,
+  SUPABASE_URL: z.url().transform((url) => url.replace(/\/+$/, "")),
+  SUPABASE_ANON_KEY: z.string().trim().min(1),
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

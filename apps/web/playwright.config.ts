@@ -29,6 +29,8 @@ export default defineConfig({
       env: {
         CORS_ALLOWED_ORIGINS: webUrl,
         DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+        SUPABASE_URL: "http://127.0.0.1:54321",
+        SUPABASE_ANON_KEY: "test-anon-key",
       },
     },
     {
@@ -38,6 +40,8 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         NEXT_PUBLIC_API_URL: `${apiUrl}/api/v1`,
+        NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "test-anon-key",
       },
     },
   ],

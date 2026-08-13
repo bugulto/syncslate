@@ -14,6 +14,8 @@
     "typecheck": "next typegen && tsc --project tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.112.3",
     "@syncslate/contracts": "workspace:*",
     "next": "^16.2.12",
     "react": "^19.2.8",
