@@ -15,11 +15,9 @@ import {
 type AuthMode = "sign-in" | "sign-up";
 type FieldErrors = Record<string, string>;
 
-export type AuthFormProps = {
-  onSignUp: (input: SignUpInput) => Promise<void> | void;
-};
-
 const defaultSignInError = "Unable to sign in right now. Please try again.";
+const defaultSignUpError =
+  "Unable to create your account right now. Please try again.";
 
 function getSignInErrorMessage(error: { code: string | undefined }) {
   switch (error.code) {
@@ -31,6 +29,23 @@ function getSignInErrorMessage(error: { code: string | undefined }) {
       return "Too many sign-in attempts. Please try again later.";
     default:
       return defaultSignInError;
+  }
+}
+
+function getSignUpErrorMessage(error: { code: string | undefined }) {
+  switch (error.code) {
+    case "email_exists":
+    case "user_already_exists":
+      return "An account with this email already exists.";
+    case "weak_password":
+      return "Choose a stronger password.";
+    case "over_email_send_rate_limit":
+    case "over_request_rate_limit":
+      return "Too many account creation attempts. Please try again later.";
+    case "signup_disabled":
+      return "Account creation is currently unavailable.";
+    default:
+      return defaultSignUpError;
   }
 }
 
@@ -46,11 +61,12 @@ function getFieldErrors(issues: { path: PropertyKey[]; message: string }[]) {
   }, {});
 }
 
-export function AuthForm({ onSignUp }: AuthFormProps) {
+export function AuthForm() {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("sign-in");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [formMessage, setFormMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isSignUp = mode === "sign-up";
@@ -59,6 +75,45 @@ export function AuthForm({ onSignUp }: AuthFormProps) {
     setMode(nextMode);
     setFieldErrors({});
     setFormError(null);
+    setFormMessage(null);
+  }
+
+  async function signUp(input: SignUpInput) {
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signUp({
+        email: input.email,
+        password: input.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            display_name: input.displayName,
+          },
+        },
+      });
+
+      if (error) {
+        setFormError(getSignUpErrorMessage(error));
+        return;
+      }
+
+      if (data.session) {
+        router.replace("/dashboard");
+        router.refresh();
+        return;
+      }
+
+      if (data.user) {
+        setFormMessage(
+          "Check your email to confirm your account, then sign in.",
+        );
+        return;
+      }
+
+      setFormError(defaultSignUpError);
+    } catch {
+      setFormError(defaultSignUpError);
+    }
   }
 
   async function signIn(input: SignInInput) {
@@ -97,16 +152,18 @@ export function AuthForm({ onSignUp }: AuthFormProps) {
     if (!result.success) {
       setFieldErrors(getFieldErrors(result.error.issues));
       setFormError(null);
+      setFormMessage(null);
       return;
     }
 
     setFieldErrors({});
     setFormError(null);
+    setFormMessage(null);
     setIsSubmitting(true);
 
     try {
       if (isSignUp) {
-        await onSignUp(result.data as SignUpInput);
+        await signUp(result.data as SignUpInput);
       } else {
         await signIn(result.data as SignInInput);
       }
@@ -238,6 +295,15 @@ export function AuthForm({ onSignUp }: AuthFormProps) {
             className="rounded-lg border border-red-900/80 bg-red-950/50 px-3 py-2 text-sm text-red-200"
           >
             {formError}
+          </p>
+        ) : null}
+
+        {formMessage ? (
+          <p
+            role="status"
+            className="rounded-lg border border-emerald-800/80 bg-emerald-950/50 px-3 py-2 text-sm text-emerald-200"
+          >
+            {formMessage}
           </p>
         ) : null}
 

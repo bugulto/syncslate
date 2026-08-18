@@ -3,10 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthForm } from "./auth-form";
 
-const { refresh, replace, signInWithPassword } = vi.hoisted(() => ({
+const { refresh, replace, signInWithPassword, signUp } = vi.hoisted(() => ({
   refresh: vi.fn(),
   replace: vi.fn(),
   signInWithPassword: vi.fn(),
+  signUp: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -14,25 +15,36 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("../../lib/supabase/client", () => ({
-  createClient: () => ({ auth: { signInWithPassword } }),
+  createClient: () => ({ auth: { signInWithPassword, signUp } }),
 }));
 
 function renderAuthForm() {
-  const onSignUp = vi.fn();
-
-  render(<AuthForm onSignUp={onSignUp} />);
-
-  return { onSignUp };
+  render(<AuthForm />);
 }
 
 function fillInput(label: string, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
 
+function openSignUp() {
+  fireEvent.click(screen.getByRole("button", { name: "Create an account" }));
+}
+
+function fillValidSignUp() {
+  fillInput("Display name", "Ada Lovelace");
+  fillInput("Email", "ada@example.com");
+  fillInput("Password", "secure-password");
+  fillInput("Confirm password", "secure-password");
+}
+
 describe("AuthForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     signInWithPassword.mockResolvedValue({ error: null });
+    signUp.mockResolvedValue({
+      data: { session: { access_token: "access-token" }, user: {} },
+      error: null,
+    });
   });
 
   it("starts in sign-in mode", () => {
@@ -115,10 +127,9 @@ describe("AuthForm", () => {
     expect(screen.queryByText("sensitive failure")).not.toBeInTheDocument();
   });
 
-  it("switches to account creation and submits registration data", async () => {
-    const { onSignUp } = renderAuthForm();
-
-    fireEvent.click(screen.getByRole("button", { name: "Create an account" }));
+  it("creates an account with display-name metadata and opens the dashboard", async () => {
+    renderAuthForm();
+    openSignUp();
 
     expect(
       screen.getByRole("heading", { name: "Create your account" }),
@@ -126,26 +137,44 @@ describe("AuthForm", () => {
     expect(screen.getByLabelText("Display name")).toBeInTheDocument();
     expect(screen.getByLabelText("Confirm password")).toBeInTheDocument();
 
-    fillInput("Display name", "Ada Lovelace");
-    fillInput("Email", "ada@example.com");
-    fillInput("Password", "secure-password");
-    fillInput("Confirm password", "secure-password");
+    fillValidSignUp();
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     await waitFor(() =>
-      expect(onSignUp).toHaveBeenCalledWith({
-        displayName: "Ada Lovelace",
+      expect(signUp).toHaveBeenCalledWith({
         email: "ada@example.com",
         password: "secure-password",
-        confirmPassword: "secure-password",
+        options: {
+          emailRedirectTo: "http://localhost:3000/auth/callback",
+          data: { display_name: "Ada Lovelace" },
+        },
       }),
     );
+    expect(replace).toHaveBeenCalledWith("/dashboard");
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("asks the user to check their email when confirmation is required", async () => {
+    signUp.mockResolvedValue({
+      data: { session: null, user: { id: "user-id" } },
+      error: null,
+    });
+    renderAuthForm();
+    openSignUp();
+    fillValidSignUp();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Check your email to confirm your account, then sign in.",
+    );
+    expect(replace).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it("shows confirmation errors in sign-up mode", () => {
-    const { onSignUp } = renderAuthForm();
-
-    fireEvent.click(screen.getByRole("button", { name: "Create an account" }));
+    renderAuthForm();
+    openSignUp();
     fillInput("Display name", "Ada Lovelace");
     fillInput("Email", "ada@example.com");
     fillInput("Password", "secure-password");
@@ -153,7 +182,87 @@ describe("AuthForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     expect(screen.getByText("Passwords do not match")).toBeInTheDocument();
-    expect(onSignUp).not.toHaveBeenCalled();
+    expect(signUp).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["user_already_exists", "An account with this email already exists."],
+    ["weak_password", "Choose a stronger password."],
+    [
+      "over_email_send_rate_limit",
+      "Too many account creation attempts. Please try again later.",
+    ],
+    [
+      "unknown_error",
+      "Unable to create your account right now. Please try again.",
+    ],
+  ])("shows a safe sign-up message for %s", async (code, message) => {
+    signUp.mockResolvedValue({
+      data: { session: null, user: null },
+      error: { code },
+    });
+    renderAuthForm();
+    openSignUp();
+    fillValidSignUp();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("handles an unexpected sign-up failure safely", async () => {
+    signUp.mockRejectedValue(new Error("sensitive failure"));
+    renderAuthForm();
+    openSignUp();
+    fillValidSignUp();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Unable to create your account right now. Please try again.",
+    );
+    expect(screen.queryByText("sensitive failure")).not.toBeInTheDocument();
+  });
+
+  it("disables account-creation controls while signing up", async () => {
+    let finishSignUp:
+      | ((value: {
+          data: { session: null; user: { id: string } };
+          error: null;
+        }) => void)
+      | undefined;
+    signUp.mockImplementation(
+      () =>
+        new Promise<{
+          data: { session: null; user: { id: string } };
+          error: null;
+        }>((resolve) => {
+          finishSignUp = resolve;
+        }),
+    );
+    renderAuthForm();
+    openSignUp();
+    fillValidSignUp();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(
+      await screen.findByRole("button", { name: "Creating account…" }),
+    ).toBeDisabled();
+    expect(screen.getByLabelText("Display name")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeDisabled();
+
+    finishSignUp?.({
+      data: { session: null, user: { id: "user-id" } },
+      error: null,
+    });
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Create account" }),
+      ).toBeEnabled(),
+    );
   });
 
   it("disables controls and announces progress while submitting", async () => {
@@ -165,7 +274,7 @@ describe("AuthForm", () => {
         }),
     );
 
-    render(<AuthForm onSignUp={vi.fn()} />);
+    render(<AuthForm />);
     fillInput("Email", "ada@example.com");
     fillInput("Password", "secure-password");
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
