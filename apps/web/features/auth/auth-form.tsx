@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+
+import { createClient } from "../../lib/supabase/client";
 
 import {
   signInSchema,
@@ -13,9 +16,23 @@ type AuthMode = "sign-in" | "sign-up";
 type FieldErrors = Record<string, string>;
 
 export type AuthFormProps = {
-  onSignIn: (input: SignInInput) => Promise<void> | void;
   onSignUp: (input: SignUpInput) => Promise<void> | void;
 };
+
+const defaultSignInError = "Unable to sign in right now. Please try again.";
+
+function getSignInErrorMessage(error: { code: string | undefined }) {
+  switch (error.code) {
+    case "invalid_credentials":
+      return "Invalid email or password.";
+    case "email_not_confirmed":
+      return "Confirm your email before signing in.";
+    case "over_request_rate_limit":
+      return "Too many sign-in attempts. Please try again later.";
+    default:
+      return defaultSignInError;
+  }
+}
 
 function getFieldErrors(issues: { path: PropertyKey[]; message: string }[]) {
   return issues.reduce<FieldErrors>((errors, issue) => {
@@ -29,9 +46,11 @@ function getFieldErrors(issues: { path: PropertyKey[]; message: string }[]) {
   }, {});
 }
 
-export function AuthForm({ onSignIn, onSignUp }: AuthFormProps) {
+export function AuthForm({ onSignUp }: AuthFormProps) {
+  const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("sign-in");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isSignUp = mode === "sign-up";
@@ -39,6 +58,24 @@ export function AuthForm({ onSignIn, onSignUp }: AuthFormProps) {
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
     setFieldErrors({});
+    setFormError(null);
+  }
+
+  async function signIn(input: SignInInput) {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword(input);
+
+      if (error) {
+        setFormError(getSignInErrorMessage(error));
+        return;
+      }
+
+      router.replace("/dashboard");
+      router.refresh();
+    } catch {
+      setFormError(defaultSignInError);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -59,17 +96,19 @@ export function AuthForm({ onSignIn, onSignUp }: AuthFormProps) {
 
     if (!result.success) {
       setFieldErrors(getFieldErrors(result.error.issues));
+      setFormError(null);
       return;
     }
 
     setFieldErrors({});
+    setFormError(null);
     setIsSubmitting(true);
 
     try {
       if (isSignUp) {
         await onSignUp(result.data as SignUpInput);
       } else {
-        await onSignIn(result.data as SignInInput);
+        await signIn(result.data as SignInInput);
       }
     } finally {
       setIsSubmitting(false);
@@ -191,6 +230,15 @@ export function AuthForm({ onSignIn, onSignUp }: AuthFormProps) {
             />
             {fieldError("confirmPassword")}
           </div>
+        ) : null}
+
+        {formError ? (
+          <p
+            role="alert"
+            className="rounded-lg border border-red-900/80 bg-red-950/50 px-3 py-2 text-sm text-red-200"
+          >
+            {formError}
+          </p>
         ) : null}
 
         <button

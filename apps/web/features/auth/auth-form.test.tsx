@@ -1,15 +1,28 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthForm } from "./auth-form";
 
+const { refresh, replace, signInWithPassword } = vi.hoisted(() => ({
+  refresh: vi.fn(),
+  replace: vi.fn(),
+  signInWithPassword: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh, replace }),
+}));
+
+vi.mock("../../lib/supabase/client", () => ({
+  createClient: () => ({ auth: { signInWithPassword } }),
+}));
+
 function renderAuthForm() {
-  const onSignIn = vi.fn();
   const onSignUp = vi.fn();
 
-  render(<AuthForm onSignIn={onSignIn} onSignUp={onSignUp} />);
+  render(<AuthForm onSignUp={onSignUp} />);
 
-  return { onSignIn, onSignUp };
+  return { onSignUp };
 }
 
 function fillInput(label: string, value: string) {
@@ -17,6 +30,11 @@ function fillInput(label: string, value: string) {
 }
 
 describe("AuthForm", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    signInWithPassword.mockResolvedValue({ error: null });
+  });
+
   it("starts in sign-in mode", () => {
     renderAuthForm();
 
@@ -32,7 +50,7 @@ describe("AuthForm", () => {
   });
 
   it("shows field errors and does not submit invalid sign-in data", () => {
-    const { onSignIn } = renderAuthForm();
+    renderAuthForm();
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -42,22 +60,59 @@ describe("AuthForm", () => {
       "aria-invalid",
       "true",
     );
-    expect(onSignIn).not.toHaveBeenCalled();
+    expect(signInWithPassword).not.toHaveBeenCalled();
   });
 
-  it("submits normalized sign-in data", async () => {
-    const { onSignIn } = renderAuthForm();
+  it("signs in with normalized data and opens the dashboard", async () => {
+    renderAuthForm();
 
     fillInput("Email", "  ada@example.com  ");
     fillInput("Password", "secure-password");
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() =>
-      expect(onSignIn).toHaveBeenCalledWith({
+      expect(signInWithPassword).toHaveBeenCalledWith({
         email: "ada@example.com",
         password: "secure-password",
       }),
     );
+    expect(replace).toHaveBeenCalledWith("/dashboard");
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["invalid_credentials", "Invalid email or password."],
+    ["email_not_confirmed", "Confirm your email before signing in."],
+    [
+      "over_request_rate_limit",
+      "Too many sign-in attempts. Please try again later.",
+    ],
+    ["unknown_error", "Unable to sign in right now. Please try again."],
+  ])("shows a safe message for %s", async (code, message) => {
+    signInWithPassword.mockResolvedValue({ error: { code } });
+    renderAuthForm();
+
+    fillInput("Email", "ada@example.com");
+    fillInput("Password", "secure-password");
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(replace).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("handles an unexpected client failure without exposing details", async () => {
+    signInWithPassword.mockRejectedValue(new Error("sensitive failure"));
+    renderAuthForm();
+
+    fillInput("Email", "ada@example.com");
+    fillInput("Password", "secure-password");
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Unable to sign in right now. Please try again.",
+    );
+    expect(screen.queryByText("sensitive failure")).not.toBeInTheDocument();
   });
 
   it("switches to account creation and submits registration data", async () => {
@@ -102,15 +157,15 @@ describe("AuthForm", () => {
   });
 
   it("disables controls and announces progress while submitting", async () => {
-    let finishSubmission: (() => void) | undefined;
-    const onSignIn = vi.fn(
+    let finishSubmission: ((value: { error: null }) => void) | undefined;
+    signInWithPassword.mockImplementation(
       () =>
-        new Promise<void>((resolve) => {
+        new Promise<{ error: null }>((resolve) => {
           finishSubmission = resolve;
         }),
     );
 
-    render(<AuthForm onSignIn={onSignIn} onSignUp={vi.fn()} />);
+    render(<AuthForm onSignUp={vi.fn()} />);
     fillInput("Email", "ada@example.com");
     fillInput("Password", "secure-password");
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
@@ -123,7 +178,7 @@ describe("AuthForm", () => {
       screen.getByRole("button", { name: "Create an account" }),
     ).toBeDisabled();
 
-    finishSubmission?.();
+    finishSubmission?.({ error: null });
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled(),
