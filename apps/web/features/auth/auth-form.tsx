@@ -15,6 +15,10 @@ import {
 type AuthMode = "sign-in" | "sign-up";
 type FieldErrors = Record<string, string>;
 
+export type AuthFormProps = {
+  initialError?: string;
+};
+
 const defaultSignInError = "Unable to sign in right now. Please try again.";
 const defaultSignUpError =
   "Unable to create your account right now. Please try again.";
@@ -61,11 +65,13 @@ function getFieldErrors(issues: { path: PropertyKey[]; message: string }[]) {
   }, {});
 }
 
-export function AuthForm() {
+export function AuthForm({ initialError }: AuthFormProps = {}) {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("sign-in");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(
+    initialError ?? null,
+  );
   const [formMessage, setFormMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
