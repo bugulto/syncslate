@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { AuthForm } from "../../features/auth/auth-form";
+import { createClient } from "../../lib/supabase/server";
 
 type SignInPageProps = {
   searchParams: Promise<{
@@ -12,6 +14,21 @@ const callbackErrorMessage =
   "Authentication could not be completed. Please try again.";
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
+  let isAuthenticated = false;
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.getClaims();
+
+    isAuthenticated = error === null && Boolean(data?.claims);
+  } catch {
+    // A failed session lookup is treated as anonymous on the sign-in page.
+  }
+
+  if (isAuthenticated) {
+    redirect("/dashboard");
+  }
+
   const { error } = await searchParams;
   const initialError =
     error === "auth_callback_failed" ? callbackErrorMessage : undefined;
