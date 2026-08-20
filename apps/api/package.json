@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",
+    "@supabase/supabase-js": "^2.112.3",
     "@syncslate/contracts": "workspace:*",
     "@syncslate/database": "workspace:*",
     "fastify": "^5.10.0",

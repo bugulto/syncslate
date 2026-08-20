@@ -38,6 +38,9 @@ importers:
       '@fastify/cors':
         specifier: ^11.3.0
         version: 11.3.0
+      '@supabase/supabase-js':
+        specifier: ^2.112.3
+        version: 2.112.3
       '@syncslate/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
