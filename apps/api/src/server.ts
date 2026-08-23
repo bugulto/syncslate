@@ -5,17 +5,25 @@ import {
 
 import { buildApp } from "./app.js";
 import { parseApiEnv } from "./config/env.js";
+import { createAccessTokenVerifier } from "./modules/auth/access-token-verifier.js";
+import { createSupabaseAuthClient } from "./modules/auth/supabase-auth.js";
 
 const env = parseApiEnv(process.env);
 const database = createDatabaseClient({
   connectionString: env.DATABASE_URL,
 });
+const supabase = createSupabaseAuthClient({
+  url: env.SUPABASE_URL,
+  anonKey: env.SUPABASE_ANON_KEY,
+});
+const verifyAccessToken = createAccessTokenVerifier(supabase);
 const app = buildApp({
   logger: {
     level: env.LOG_LEVEL,
   },
   corsAllowedOrigins: env.CORS_ALLOWED_ORIGINS,
   checkReadiness: () => checkDatabaseConnection(database),
+  verifyAccessToken,
 });
 
 app.addHook("onClose", async () => {

@@ -1,3 +1,4 @@
+import type { ApiError } from "@syncslate/contracts";
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import fastifyPlugin from "fastify-plugin";
 
@@ -24,6 +25,21 @@ export type AuthenticationPluginOptions = {
   verifyAccessToken: AccessTokenVerifier;
 };
 
+async function sendUnauthorized(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const body = {
+    error: {
+      code: "UNAUTHORIZED",
+      message: "Authentication required.",
+      requestId: request.id,
+    },
+  } satisfies ApiError;
+
+  await reply.header("www-authenticate", "Bearer").code(401).send(body);
+}
+
 const registerAuthentication: FastifyPluginAsync<
   AuthenticationPluginOptions
 > = async (app, options) => {
@@ -33,14 +49,20 @@ const registerAuthentication: FastifyPluginAsync<
     const accessToken = extractBearerToken(request.headers.authorization);
 
     if (!accessToken) {
-      await reply.code(401).send();
+      await sendUnauthorized(request, reply);
       return;
     }
 
-    const principal = await options.verifyAccessToken(accessToken);
+    let principal: AuthPrincipal | null = null;
+
+    try {
+      principal = await options.verifyAccessToken(accessToken);
+    } catch {
+      // Authentication failures intentionally share one public response.
+    }
 
     if (!principal) {
-      await reply.code(401).send();
+      await sendUnauthorized(request, reply);
       return;
     }
 

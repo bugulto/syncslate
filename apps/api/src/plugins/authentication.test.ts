@@ -1,3 +1,4 @@
+import { apiErrorSchema } from "@syncslate/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -28,6 +29,25 @@ function buildProtectedApp(verifyAccessToken: AccessTokenVerifier) {
   apps.add(app);
 
   return { app, handler };
+}
+
+function expectUnauthorized(response: {
+  statusCode: number;
+  headers: Record<string, number | string | string[] | undefined>;
+  json: () => unknown;
+}) {
+  const body = response.json();
+
+  expect(response.statusCode).toBe(401);
+  expect(response.headers["www-authenticate"]).toBe("Bearer");
+  expect(apiErrorSchema.safeParse(body).success).toBe(true);
+  expect(body).toEqual({
+    error: {
+      code: "UNAUTHORIZED",
+      message: "Authentication required.",
+      requestId: expect.any(String),
+    },
+  });
 }
 
 describe("authenticationPlugin", () => {
@@ -64,7 +84,7 @@ describe("authenticationPlugin", () => {
       url: "/protected",
     });
 
-    expect(response.statusCode).toBe(401);
+    expectUnauthorized(response);
     expect(verifyAccessToken).not.toHaveBeenCalled();
     expect(handler).not.toHaveBeenCalled();
   });
@@ -81,8 +101,26 @@ describe("authenticationPlugin", () => {
       headers: { authorization: "Bearer invalid-access-token" },
     });
 
-    expect(response.statusCode).toBe(401);
+    expectUnauthorized(response);
     expect(verifyAccessToken).toHaveBeenCalledWith("invalid-access-token");
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("does not expose tokens or verifier failures", async () => {
+    const verifyAccessToken = vi
+      .fn<AccessTokenVerifier>()
+      .mockRejectedValue(new Error("sensitive Supabase failure"));
+    const { app, handler } = buildProtectedApp(verifyAccessToken);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/protected",
+      headers: { authorization: "Bearer sensitive-raw-token" },
+    });
+
+    expectUnauthorized(response);
+    expect(response.body).not.toContain("sensitive-raw-token");
+    expect(response.body).not.toContain("sensitive Supabase failure");
     expect(handler).not.toHaveBeenCalled();
   });
 });
