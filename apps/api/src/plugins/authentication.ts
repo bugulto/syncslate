@@ -4,6 +4,7 @@ import fastifyPlugin from "fastify-plugin";
 
 import type { AccessTokenVerifier } from "../modules/auth/access-token-verifier.js";
 import type { AuthPrincipal } from "../modules/auth/auth-principal.js";
+import type { AuthenticatedUser } from "../modules/auth/authenticated-user.js";
 import { extractBearerToken } from "../modules/auth/bearer-token.js";
 
 type Authenticate = (
@@ -14,6 +15,7 @@ type Authenticate = (
 declare module "fastify" {
   interface FastifyRequest {
     authPrincipal: AuthPrincipal | null;
+    authenticatedUser: AuthenticatedUser | null;
   }
 
   interface FastifyInstance {
@@ -44,6 +46,7 @@ const registerAuthentication: FastifyPluginAsync<
   AuthenticationPluginOptions
 > = async (app, options) => {
   app.decorateRequest("authPrincipal", null);
+  app.decorateRequest("authenticatedUser", null);
 
   app.decorate("authenticate", async (request, reply) => {
     const accessToken = extractBearerToken(request.headers.authorization);
@@ -53,20 +56,21 @@ const registerAuthentication: FastifyPluginAsync<
       return;
     }
 
-    let principal: AuthPrincipal | null = null;
+    let authenticatedUser: AuthenticatedUser | null = null;
 
     try {
-      principal = await options.verifyAccessToken(accessToken);
+      authenticatedUser = await options.verifyAccessToken(accessToken);
     } catch {
       // Authentication failures intentionally share one public response.
     }
 
-    if (!principal) {
+    if (!authenticatedUser) {
       await sendUnauthorized(request, reply);
       return;
     }
 
-    request.authPrincipal = principal;
+    request.authenticatedUser = authenticatedUser;
+    request.authPrincipal = authenticatedUser.principal;
   });
 };
 

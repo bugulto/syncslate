@@ -4,7 +4,7 @@ export const currentUserSchema = z
   .object({
     id: z.uuid(),
     email: z.email().nullable(),
-    displayName: z.string().trim().min(1).max(100),
+    displayName: z.string().trim().min(3).max(20),
     avatarUrl: z.url().nullable(),
   })
   .strict();

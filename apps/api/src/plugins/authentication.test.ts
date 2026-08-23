@@ -14,9 +14,15 @@ afterEach(async () => {
 
 function buildProtectedApp(verifyAccessToken: AccessTokenVerifier) {
   const app = Fastify({ logger: false });
-  const handler = vi.fn(async (request: { authPrincipal: unknown }) => ({
-    principal: request.authPrincipal,
-  }));
+  const handler = vi.fn(
+    async (request: {
+      authPrincipal: unknown;
+      authenticatedUser: unknown;
+    }) => ({
+      principal: request.authPrincipal,
+      authenticatedUser: request.authenticatedUser,
+    }),
+  );
 
   app.register(authenticationPlugin, { verifyAccessToken });
   app.register(async (protectedRoutes) => {
@@ -53,8 +59,13 @@ function expectUnauthorized(response: {
 describe("authenticationPlugin", () => {
   it("attaches a verified principal and continues to the handler", async () => {
     const verifyAccessToken = vi.fn<AccessTokenVerifier>().mockResolvedValue({
-      kind: "user",
-      userId: "550e8400-e29b-41d4-a716-446655440000",
+      principal: {
+        kind: "user",
+        userId: "550e8400-e29b-41d4-a716-446655440000",
+      },
+      email: "interviewer@example.com",
+      displayName: "Ada Lovelace",
+      avatarUrl: null,
     });
     const { app, handler } = buildProtectedApp(verifyAccessToken);
 
@@ -69,6 +80,15 @@ describe("authenticationPlugin", () => {
       principal: {
         kind: "user",
         userId: "550e8400-e29b-41d4-a716-446655440000",
+      },
+      authenticatedUser: {
+        principal: {
+          kind: "user",
+          userId: "550e8400-e29b-41d4-a716-446655440000",
+        },
+        email: "interviewer@example.com",
+        displayName: "Ada Lovelace",
+        avatarUrl: null,
       },
     });
     expect(verifyAccessToken).toHaveBeenCalledWith("valid-access-token");

@@ -51,6 +51,21 @@ describe("currentUserSchema", () => {
     );
   });
 
+  it("requires display names to contain between 3 and 20 characters", () => {
+    expect(
+      currentUserSchema.safeParse({
+        ...validUser,
+        displayName: "Al",
+      }).success,
+    ).toBe(false);
+    expect(
+      currentUserSchema.safeParse({
+        ...validUser,
+        displayName: "A".repeat(21),
+      }).success,
+    ).toBe(false);
+  });
+
   it("rejects unexpected sensitive fields", () => {
     expect(
       currentUserSchema.safeParse({

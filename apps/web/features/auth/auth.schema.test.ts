@@ -64,6 +64,24 @@ describe("signUpSchema", () => {
     ).toBe(false);
   });
 
+  it("rejects a display name shorter than three characters", () => {
+    expect(
+      signUpSchema.safeParse({
+        ...validSignUp,
+        displayName: "Al",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a display name longer than twenty characters", () => {
+    expect(
+      signUpSchema.safeParse({
+        ...validSignUp,
+        displayName: "A".repeat(21),
+      }).success,
+    ).toBe(false);
+  });
+
   it("rejects an invalid email", () => {
     expect(
       signUpSchema.safeParse({

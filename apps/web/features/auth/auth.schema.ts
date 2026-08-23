@@ -25,8 +25,8 @@ export const signUpSchema = z
     displayName: z
       .string()
       .trim()
-      .min(1, "Display name is required")
-      .max(100, "Display name must be 100 characters or fewer"),
+      .min(3, "Display name must be at least 3 characters")
+      .max(20, "Display name must be 20 characters or fewer"),
     email: emailSchema,
     password: passwordSchema,
     confirmPassword: z.string().min(1, "Confirm your password"),
