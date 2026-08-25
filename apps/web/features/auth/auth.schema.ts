@@ -1,3 +1,4 @@
+import { displayNameSchema } from "@syncslate/contracts";
 import { z } from "zod";
 
 const emailSchema = z
@@ -22,11 +23,7 @@ export type SignInInput = z.infer<typeof signInSchema>;
 
 export const signUpSchema = z
   .object({
-    displayName: z
-      .string()
-      .trim()
-      .min(3, "Display name must be at least 3 characters")
-      .max(20, "Display name must be 20 characters or fewer"),
+    displayName: displayNameSchema,
     email: emailSchema,
     password: passwordSchema,
     confirmPassword: z.string().min(1, "Confirm your password"),

@@ -1,10 +1,16 @@
 import { z } from "zod";
 
+export const displayNameSchema = z
+  .string()
+  .trim()
+  .min(3, "Display name must be at least 3 characters")
+  .max(20, "Display name must be 20 characters or fewer");
+
 export const currentUserSchema = z
   .object({
     id: z.uuid(),
     email: z.email().nullable(),
-    displayName: z.string().trim().min(3).max(20),
+    displayName: displayNameSchema,
     avatarUrl: z.url().nullable(),
   })
   .strict();

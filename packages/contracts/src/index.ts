@@ -7,6 +7,7 @@ export {
 export {
   currentUserSchema,
   type CurrentUser,
+  displayNameSchema,
   meResponseSchema,
   type MeResponse,
 } from "./auth.js";

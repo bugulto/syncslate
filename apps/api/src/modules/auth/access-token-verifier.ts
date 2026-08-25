@@ -1,10 +1,10 @@
+import { displayNameSchema } from "@syncslate/contracts";
 import { z } from "zod";
 
 import type { AuthenticatedUser } from "./authenticated-user.js";
 
 const userIdSchema = z.uuid();
 const emailSchema = z.email();
-const displayNameSchema = z.string().trim().min(3).max(20);
 const avatarUrlSchema = z.url();
 
 type SupabaseUserVerifier = {
