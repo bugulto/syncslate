@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildApp } from "../../app.js";
+import type { ProfileBootstrapService } from "../auth/profile-bootstrap.js";
 
 const apps = new Set<ReturnType<typeof buildApp>>();
 const verifyAccessToken = vi.fn(async () => null);
+const bootstrapProfile = vi.fn<ProfileBootstrapService>();
 
 afterEach(async () => {
   await Promise.all([...apps].map((app) => app.close()));
@@ -17,6 +19,7 @@ describe("GET /api/v1/health", () => {
       logger: false,
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness: vi.fn(async () => undefined),
+      bootstrapProfile,
       verifyAccessToken,
     });
     apps.add(app);
@@ -29,6 +32,7 @@ describe("GET /api/v1/health", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ status: "ok" });
     expect(verifyAccessToken).not.toHaveBeenCalled();
+    expect(bootstrapProfile).not.toHaveBeenCalled();
   });
 
   it("allows the configured web origin", async () => {
@@ -36,6 +40,7 @@ describe("GET /api/v1/health", () => {
       logger: false,
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness: vi.fn(async () => undefined),
+      bootstrapProfile,
       verifyAccessToken,
     });
     apps.add(app);
@@ -59,6 +64,7 @@ describe("GET /api/v1/ready", () => {
       logger: false,
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness,
+      bootstrapProfile,
       verifyAccessToken,
     });
     apps.add(app);
@@ -81,6 +87,7 @@ describe("GET /api/v1/ready", () => {
       logger: false,
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness,
+      bootstrapProfile,
       verifyAccessToken,
     });
     apps.add(app);

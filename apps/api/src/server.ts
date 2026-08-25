@@ -1,11 +1,15 @@
 import {
   checkDatabaseConnection,
   createDatabaseClient,
+  createProfileIfMissing,
+  findProfileByUserId,
+  updateProfileMetadata,
 } from "@syncslate/database";
 
 import { buildApp } from "./app.js";
 import { parseApiEnv } from "./config/env.js";
 import { createAccessTokenVerifier } from "./modules/auth/access-token-verifier.js";
+import { createProfileBootstrapService } from "./modules/auth/profile-bootstrap.js";
 import { createSupabaseAuthClient } from "./modules/auth/supabase-auth.js";
 
 const env = parseApiEnv(process.env);
@@ -17,12 +21,18 @@ const supabase = createSupabaseAuthClient({
   anonKey: env.SUPABASE_ANON_KEY,
 });
 const verifyAccessToken = createAccessTokenVerifier(supabase);
+const bootstrapProfile = createProfileBootstrapService({
+  findProfileByUserId: (userId) => findProfileByUserId(database, userId),
+  createProfileIfMissing: (input) => createProfileIfMissing(database, input),
+  updateProfileMetadata: (input) => updateProfileMetadata(database, input),
+});
 const app = buildApp({
   logger: {
     level: env.LOG_LEVEL,
   },
   corsAllowedOrigins: env.CORS_ALLOWED_ORIGINS,
   checkReadiness: () => checkDatabaseConnection(database),
+  bootstrapProfile,
   verifyAccessToken,
 });
 
