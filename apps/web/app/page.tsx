@@ -1,12 +1,8 @@
 import { ApiHealthStatus } from "./api-health-status";
-import { parseWebEnv } from "../lib/env";
+import { getWebEnv } from "../lib/env";
 
 export default function HomePage() {
-  const env = parseWebEnv({
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  });
+  const env = getWebEnv();
 
   return (
     <main className="grid min-h-screen place-items-center bg-slate-950 px-6 py-16 text-slate-100">

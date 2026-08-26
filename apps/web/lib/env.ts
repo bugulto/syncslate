@@ -24,3 +24,11 @@ export function parseWebEnv(input: Record<string, string | undefined>): WebEnv {
 
   return result.data;
 }
+
+export function getWebEnv(): WebEnv {
+  return parseWebEnv({
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  });
+}
