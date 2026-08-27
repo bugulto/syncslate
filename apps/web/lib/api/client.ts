@@ -33,7 +33,7 @@ function normalizeBaseUrl(baseUrl: string): string {
       throw new Error();
     }
 
-    return url.toString().replace(/\/$/u, "");
+    return url.toString().replace(/\/+$/u, "");
   } catch {
     throw new Error("Invalid API base URL.");
   }

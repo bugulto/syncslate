@@ -67,6 +67,24 @@ describe("createAuthenticatedApiClient", () => {
     expect(headers.get("x-correlation-id")).toBe("correlation-id");
   });
 
+  it("normalizes trailing slashes in an injected API base URL", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(createResponse({ value: "ok" }));
+    const client = createAuthenticatedApiClient({
+      baseUrl: "http://localhost:4000/api/v1///",
+      getAccessToken: vi.fn(async () => "verified-access-token"),
+      fetch,
+    });
+
+    await client.request("/me", responseSchema);
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:4000/api/v1/me",
+      expect.any(Object),
+    );
+  });
+
   it.each(["https://attacker.example/me", "//attacker.example/me"])(
     "rejects the unsafe API path %s",
     async (path) => {
