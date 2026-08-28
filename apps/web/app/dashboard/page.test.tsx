@@ -18,6 +18,10 @@ vi.mock("../../lib/api/current-user", () => ({ getCurrentUser }));
 
 vi.mock("../../lib/api/server", () => ({ createServerApiClient }));
 
+vi.mock("../../features/auth/sign-out-button", () => ({
+  SignOutButton: () => <button type="button">Sign out</button>,
+}));
+
 const currentUser = {
   id: "00000000-0000-4000-8000-000000000001",
   email: "interviewer@example.com",
@@ -48,6 +52,9 @@ describe("DashboardPage", () => {
     expect(
       screen.getByRole("img", { name: "Ada Interviewer's initials" }),
     ).toHaveTextContent("AI");
+    expect(
+      screen.getByRole("button", { name: "Sign out" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 2, name: "Interviews" }),
     ).toBeInTheDocument();

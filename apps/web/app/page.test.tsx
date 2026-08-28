@@ -3,11 +3,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import HomePage from "./page";
 
+const { createClient, getClaims } = vi.hoisted(() => ({
+  createClient: vi.fn(),
+  getClaims: vi.fn(),
+}));
+
+vi.mock("../lib/supabase/server", () => ({ createClient }));
+
 describe("HomePage", () => {
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_API_URL", "http://localhost:4000/api/v1");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "test-anon-key");
+    createClient.mockResolvedValue({ auth: { getClaims } });
+    getClaims.mockResolvedValue({ data: { claims: undefined }, error: null });
   });
 
   afterEach(() => {
@@ -15,12 +24,12 @@ describe("HomePage", () => {
     vi.unstubAllGlobals();
   });
 
-  it("introduces the product with an accessible heading", () => {
+  it("introduces the product and links anonymous visitors to sign in", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockReturnValue(new Promise(() => undefined)),
     );
-    render(<HomePage />);
+    render(await HomePage());
 
     expect(
       screen.getByRole("heading", { level: 1, name: "SyncSlate" }),
@@ -30,7 +39,43 @@ describe("HomePage", () => {
         "Real-time technical interviews, in one focused workspace.",
       ),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+      "href",
+      "/sign-in",
+    );
     expect(screen.getByRole("status")).toHaveTextContent("Checking API…");
+  });
+
+  it("links authenticated visitors to their dashboard", async () => {
+    getClaims.mockResolvedValue({
+      data: { claims: { sub: "user-id" } },
+      error: null,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockReturnValue(new Promise(() => undefined)),
+    );
+
+    render(await HomePage());
+
+    expect(
+      screen.getByRole("link", { name: "Go to dashboard" }),
+    ).toHaveAttribute("href", "/dashboard");
+  });
+
+  it("falls back to sign in when the session lookup fails", async () => {
+    createClient.mockRejectedValue(new Error("Supabase unavailable"));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockReturnValue(new Promise(() => undefined)),
+    );
+
+    render(await HomePage());
+
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+      "href",
+      "/sign-in",
+    );
   });
 
   it("shows when the API is connected", async () => {
@@ -42,7 +87,7 @@ describe("HomePage", () => {
       }),
     );
 
-    render(<HomePage />);
+    render(await HomePage());
 
     expect(
       await screen.findByRole("status", { name: "API connected" }),
@@ -64,7 +109,7 @@ describe("HomePage", () => {
       }),
     );
 
-    render(<HomePage />);
+    render(await HomePage());
 
     expect(
       await screen.findByRole("status", { name: "API unavailable" }),

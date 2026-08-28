@@ -2,6 +2,7 @@ import type { CurrentUser } from "@syncslate/contracts";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { SignOutButton } from "../../features/auth/sign-out-button";
 import { getCurrentUser } from "../../lib/api/current-user";
 import { AuthenticationRequiredError } from "../../lib/api/errors";
 import { createServerApiClient } from "../../lib/api/server";
@@ -106,6 +107,7 @@ export default async function DashboardPage() {
               </p>
             ) : null}
           </div>
+          <SignOutButton />
         </section>
 
         <section aria-labelledby="interviews-title" className="mt-10">
