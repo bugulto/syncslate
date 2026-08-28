@@ -3,12 +3,16 @@ import {
   meResponseSchema,
   type CurrentUser,
 } from "@syncslate/contracts";
+import type { Profile } from "@syncslate/database";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildApp } from "../../app.js";
 import type { AccessTokenVerifier } from "./access-token-verifier.js";
 import type { AuthenticatedUser } from "./authenticated-user.js";
-import type { ProfileBootstrapService } from "./profile-bootstrap.js";
+import {
+  createProfileBootstrapService,
+  type ProfileBootstrapService,
+} from "./profile-bootstrap.js";
 
 const apps = new Set<ReturnType<typeof buildApp>>();
 const userId = "550e8400-e29b-41d4-a716-446655440000";
@@ -107,6 +111,45 @@ describe("GET /api/v1/me", () => {
     });
     expect(verifyAccessToken).toHaveBeenCalledWith("valid-access-token");
     expect(bootstrapProfile).toHaveBeenCalledWith(authenticatedUser);
+  });
+
+  it("creates a missing profile once across repeated requests", async () => {
+    let storedProfile: Profile | null = null;
+    const findProfileByUserId = vi.fn(async () => storedProfile);
+    const createProfileIfMissing = vi.fn(async () => {
+      storedProfile = {
+        id: userId,
+        displayName: "Ada Lovelace",
+        avatarUrl: null,
+        createdAt: new Date("2026-08-28T00:00:00.000Z"),
+        updatedAt: new Date("2026-08-28T00:00:00.000Z"),
+      };
+
+      return storedProfile;
+    });
+    const bootstrapProfile = createProfileBootstrapService({
+      findProfileByUserId,
+      createProfileIfMissing,
+      updateProfileMetadata: vi.fn(async () => storedProfile),
+    });
+    const verifyAccessToken = vi
+      .fn<AccessTokenVerifier>()
+      .mockResolvedValue(authenticatedUser);
+    const app = buildMeApp({ verifyAccessToken, bootstrapProfile });
+
+    const request = {
+      method: "GET" as const,
+      url: "/api/v1/me",
+      headers: { authorization: "Bearer valid-access-token" },
+    };
+    const firstResponse = await app.inject(request);
+    const secondResponse = await app.inject(request);
+
+    expect(firstResponse.statusCode).toBe(200);
+    expect(secondResponse.statusCode).toBe(200);
+    expect(firstResponse.json()).toEqual(secondResponse.json());
+    expect(findProfileByUserId).toHaveBeenCalledTimes(2);
+    expect(createProfileIfMissing).toHaveBeenCalledOnce();
   });
 
   it("does not expose internal authentication fields", async () => {

@@ -54,10 +54,13 @@ jobs:
         run: pnpm build
 
   e2e:
-    name: Playwright smoke test
+    name: Playwright authentication flow
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID: ci-placeholder-client-id
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET: ci-placeholder-client-secret
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -74,8 +77,30 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Start local Supabase
+        run: pnpm infra:up
+
+      - name: Export local Supabase environment
+        run: |
+          eval "$(pnpm exec supabase status -o env)"
+          {
+            echo "DATABASE_URL=$DB_URL"
+            echo "DIRECT_DATABASE_URL=$DB_URL"
+            echo "SUPABASE_URL=$API_URL"
+            echo "SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+          } >> "$GITHUB_ENV"
+
+      - name: Apply database migrations
+        run: pnpm db:migrate
+
       - name: Install Chromium
         run: pnpm --filter @syncslate/web exec playwright install --with-deps chromium
 
       - name: Run end-to-end tests
         run: pnpm test:e2e
+
+      - name: Stop local Supabase
+        if: always()
+        run: pnpm infra:down

@@ -1,7 +1,49 @@
+import { existsSync } from "node:fs";
+import { loadEnvFile } from "node:process";
+import { fileURLToPath } from "node:url";
+
 import { defineConfig, devices } from "@playwright/test";
 
 const webUrl = "http://localhost:3000";
 const apiUrl = "http://localhost:4000";
+const localEnvPaths = [
+  fileURLToPath(new URL(".env.local", import.meta.url)),
+  fileURLToPath(new URL("../api/.env", import.meta.url)),
+];
+
+for (const envPath of localEnvPaths) {
+  if (existsSync(envPath)) {
+    loadEnvFile(envPath);
+  }
+}
+
+function requiredEnvironmentValue(name: string, fallbackName?: string): string {
+  const value =
+    process.env[name] ?? (fallbackName ? process.env[fallbackName] : undefined);
+
+  if (!value) {
+    throw new Error(
+      `Playwright requires ${name}${fallbackName ? ` or ${fallbackName}` : ""}.`,
+    );
+  }
+
+  return value;
+}
+
+const databaseUrl = requiredEnvironmentValue("DATABASE_URL", "DB_URL");
+const apiSupabaseUrl = requiredEnvironmentValue("SUPABASE_URL", "API_URL");
+const apiSupabaseAnonKey = requiredEnvironmentValue(
+  "SUPABASE_ANON_KEY",
+  "ANON_KEY",
+);
+const webSupabaseUrl = requiredEnvironmentValue(
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "API_URL",
+);
+const webSupabaseAnonKey = requiredEnvironmentValue(
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "ANON_KEY",
+);
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -27,10 +69,11 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
+        PORT: "4000",
         CORS_ALLOWED_ORIGINS: webUrl,
-        DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
-        SUPABASE_URL: "http://127.0.0.1:54321",
-        SUPABASE_ANON_KEY: "test-anon-key",
+        DATABASE_URL: databaseUrl,
+        SUPABASE_URL: apiSupabaseUrl,
+        SUPABASE_ANON_KEY: apiSupabaseAnonKey,
       },
     },
     {
@@ -39,9 +82,10 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
+        PORT: "3000",
         NEXT_PUBLIC_API_URL: `${apiUrl}/api/v1`,
-        NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: "test-anon-key",
+        NEXT_PUBLIC_SUPABASE_URL: webSupabaseUrl,
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: webSupabaseAnonKey,
       },
     },
   ],
