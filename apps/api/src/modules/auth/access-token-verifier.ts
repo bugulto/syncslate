@@ -55,14 +55,22 @@ export function createAccessTokenVerifier(
           userId,
         },
         email: normalizedValue(emailSchema, data.user.email),
-        displayName: normalizedValue(
-          displayNameSchema,
-          data.user.user_metadata?.display_name,
-        ),
-        avatarUrl: normalizedValue(
-          avatarUrlSchema,
-          data.user.user_metadata?.avatar_url,
-        ),
+        displayName:
+          normalizedValue(
+            displayNameSchema,
+            data.user.user_metadata?.display_name,
+          ) ??
+          normalizedValue(
+            displayNameSchema,
+            data.user.user_metadata?.full_name,
+          ) ??
+          normalizedValue(displayNameSchema, data.user.user_metadata?.name),
+        avatarUrl:
+          normalizedValue(
+            avatarUrlSchema,
+            data.user.user_metadata?.avatar_url,
+          ) ??
+          normalizedValue(avatarUrlSchema, data.user.user_metadata?.picture),
       };
     } catch {
       return null;

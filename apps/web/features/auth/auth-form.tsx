@@ -22,6 +22,7 @@ export type AuthFormProps = {
 const defaultSignInError = "Unable to sign in right now. Please try again.";
 const defaultSignUpError =
   "Unable to create your account right now. Please try again.";
+const defaultGoogleError = "Unable to continue with Google. Please try again.";
 
 function getSignInErrorMessage(error: { code: string | undefined }) {
   switch (error.code) {
@@ -74,8 +75,10 @@ export function AuthForm({ initialError }: AuthFormProps = {}) {
   );
   const [formMessage, setFormMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const isSignUp = mode === "sign-up";
+  const isBusy = isSubmitting || isGoogleSubmitting;
 
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
@@ -136,6 +139,31 @@ export function AuthForm({ initialError }: AuthFormProps = {}) {
       router.refresh();
     } catch {
       setFormError(defaultSignInError);
+    }
+  }
+
+  async function signInWithGoogle() {
+    setFieldErrors({});
+    setFormError(null);
+    setFormMessage(null);
+    setIsGoogleSubmitting(true);
+
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        setFormError(defaultGoogleError);
+        setIsGoogleSubmitting(false);
+      }
+    } catch {
+      setFormError(defaultGoogleError);
+      setIsGoogleSubmitting(false);
     }
   }
 
@@ -209,6 +237,23 @@ export function AuthForm({ initialError }: AuthFormProps = {}) {
           : "Continue to your interviewer dashboard."}
       </p>
 
+      <button
+        type="button"
+        className="mt-6 w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2.5 font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 disabled:cursor-wait disabled:opacity-60"
+        disabled={isBusy}
+        onClick={signInWithGoogle}
+      >
+        {isGoogleSubmitting ? "Connecting to Google…" : "Continue with Google"}
+      </button>
+
+      <div aria-hidden="true" className="mt-6 flex items-center gap-3">
+        <span className="h-px flex-1 bg-slate-700" />
+        <span className="text-xs font-medium tracking-wider text-slate-500 uppercase">
+          Or continue with email
+        </span>
+        <span className="h-px flex-1 bg-slate-700" />
+      </div>
+
       <form
         key={mode}
         className="mt-6 space-y-4"
@@ -227,7 +272,7 @@ export function AuthForm({ initialError }: AuthFormProps = {}) {
               autoComplete="name"
               minLength={3}
               maxLength={20}
-              disabled={isSubmitting}
+              disabled={isBusy}
               aria-invalid={Boolean(fieldErrors.displayName)}
               aria-describedby={
                 fieldErrors.displayName ? "displayName-error" : undefined
@@ -247,7 +292,7 @@ export function AuthForm({ initialError }: AuthFormProps = {}) {
             name="email"
             type="email"
             autoComplete="email"
-            disabled={isSubmitting}
+            disabled={isBusy}
             aria-invalid={Boolean(fieldErrors.email)}
             aria-describedby={fieldErrors.email ? "email-error" : undefined}
             className={inputClassName}
@@ -264,7 +309,7 @@ export function AuthForm({ initialError }: AuthFormProps = {}) {
             name="password"
             type="password"
             autoComplete={isSignUp ? "new-password" : "current-password"}
-            disabled={isSubmitting}
+            disabled={isBusy}
             aria-invalid={Boolean(fieldErrors.password)}
             aria-describedby={
               fieldErrors.password ? "password-error" : undefined
@@ -284,7 +329,7 @@ export function AuthForm({ initialError }: AuthFormProps = {}) {
               name="confirmPassword"
               type="password"
               autoComplete="new-password"
-              disabled={isSubmitting}
+              disabled={isBusy}
               aria-invalid={Boolean(fieldErrors.confirmPassword)}
               aria-describedby={
                 fieldErrors.confirmPassword
@@ -317,7 +362,7 @@ export function AuthForm({ initialError }: AuthFormProps = {}) {
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isBusy}
           className="w-full rounded-lg bg-cyan-400 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-cyan-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting
@@ -334,7 +379,7 @@ export function AuthForm({ initialError }: AuthFormProps = {}) {
         {isSignUp ? "Already have an account?" : "New to SyncSlate?"}{" "}
         <button
           type="button"
-          disabled={isSubmitting}
+          disabled={isBusy}
           onClick={() => switchMode(isSignUp ? "sign-in" : "sign-up")}
           className="font-medium text-cyan-300 hover:text-cyan-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
         >

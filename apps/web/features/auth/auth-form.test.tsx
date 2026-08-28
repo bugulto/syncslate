@@ -3,19 +3,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthForm } from "./auth-form";
 
-const { refresh, replace, signInWithPassword, signUp } = vi.hoisted(() => ({
-  refresh: vi.fn(),
-  replace: vi.fn(),
-  signInWithPassword: vi.fn(),
-  signUp: vi.fn(),
-}));
+const { refresh, replace, signInWithOAuth, signInWithPassword, signUp } =
+  vi.hoisted(() => ({
+    refresh: vi.fn(),
+    replace: vi.fn(),
+    signInWithOAuth: vi.fn(),
+    signInWithPassword: vi.fn(),
+    signUp: vi.fn(),
+  }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh, replace }),
 }));
 
 vi.mock("../../lib/supabase/client", () => ({
-  createClient: () => ({ auth: { signInWithPassword, signUp } }),
+  createClient: () => ({
+    auth: { signInWithOAuth, signInWithPassword, signUp },
+  }),
 }));
 
 function renderAuthForm() {
@@ -40,6 +44,7 @@ function fillValidSignUp() {
 describe("AuthForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    signInWithOAuth.mockResolvedValue({ error: null });
     signInWithPassword.mockResolvedValue({ error: null });
     signUp.mockResolvedValue({
       data: { session: { access_token: "access-token" }, user: {} },
@@ -59,6 +64,81 @@ describe("AuthForm", () => {
       "current-password",
     );
     expect(screen.queryByLabelText("Display name")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Continue with Google" }),
+    ).toBeInTheDocument();
+  });
+
+  it("starts Google OAuth with the SyncSlate callback", async () => {
+    renderAuthForm();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continue with Google" }),
+    );
+
+    await waitFor(() =>
+      expect(signInWithOAuth).toHaveBeenCalledWith({
+        provider: "google",
+        options: {
+          redirectTo: "http://localhost:3000/auth/callback",
+        },
+      }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Connecting to Google…" }),
+    ).toBeDisabled();
+    expect(screen.getByLabelText("Email")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Create an account" }),
+    ).toBeDisabled();
+  });
+
+  it("keeps Google OAuth available in account-creation mode", () => {
+    renderAuthForm();
+    openSignUp();
+
+    expect(
+      screen.getByRole("button", { name: "Continue with Google" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a safe Google OAuth error and restores the controls", async () => {
+    signInWithOAuth.mockResolvedValue({
+      error: new Error("sensitive provider failure"),
+    });
+    renderAuthForm();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continue with Google" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Unable to continue with Google. Please try again.",
+    );
+    expect(
+      screen.queryByText("sensitive provider failure"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Continue with Google" }),
+    ).toBeEnabled();
+    expect(screen.getByLabelText("Email")).toBeEnabled();
+  });
+
+  it("handles an unexpected Google OAuth failure safely", async () => {
+    signInWithOAuth.mockRejectedValue(new Error("sensitive client failure"));
+    renderAuthForm();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continue with Google" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Unable to continue with Google. Please try again.",
+    );
+    expect(
+      screen.queryByText("sensitive client failure"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows field errors and does not submit invalid sign-in data", () => {

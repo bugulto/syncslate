@@ -59,6 +59,84 @@ describe("createAccessTokenVerifier", () => {
     });
   });
 
+  it("normalizes Google profile metadata", async () => {
+    getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          email: "google-user@example.com",
+          user_metadata: {
+            full_name: "  Grace Hopper  ",
+            picture: "https://example.com/google-avatar.png",
+          },
+        },
+      },
+      error: null,
+    });
+
+    await expect(verifyAccessToken("google-access-token")).resolves.toEqual({
+      principal: {
+        kind: "user",
+        userId: "550e8400-e29b-41d4-a716-446655440000",
+      },
+      email: "google-user@example.com",
+      displayName: "Grace Hopper",
+      avatarUrl: "https://example.com/google-avatar.png",
+    });
+  });
+
+  it("accepts a provider name when no full name is available", async () => {
+    getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          user_metadata: {
+            name: "Katherine Johnson",
+          },
+        },
+      },
+      error: null,
+    });
+
+    await expect(verifyAccessToken("provider-access-token")).resolves.toEqual({
+      principal: {
+        kind: "user",
+        userId: "550e8400-e29b-41d4-a716-446655440000",
+      },
+      email: null,
+      displayName: "Katherine Johnson",
+      avatarUrl: null,
+    });
+  });
+
+  it("uses valid fallback metadata without overriding preferred values", async () => {
+    getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          user_metadata: {
+            display_name: "Ada Interviewer",
+            full_name: "Ignored Google Name",
+            name: "Ignored Provider Name",
+            avatar_url: "not-a-url",
+            picture: "https://example.com/fallback-avatar.png",
+          },
+        },
+      },
+      error: null,
+    });
+
+    await expect(verifyAccessToken("valid-access-token")).resolves.toEqual({
+      principal: {
+        kind: "user",
+        userId: "550e8400-e29b-41d4-a716-446655440000",
+      },
+      email: null,
+      displayName: "Ada Interviewer",
+      avatarUrl: "https://example.com/fallback-avatar.png",
+    });
+  });
+
   it("discards invalid optional user data", async () => {
     getUser.mockResolvedValue({
       data: {
