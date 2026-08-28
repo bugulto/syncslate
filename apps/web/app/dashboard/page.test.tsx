@@ -49,7 +49,15 @@ describe("DashboardPage", () => {
       screen.getByRole("img", { name: "Ada Interviewer's initials" }),
     ).toHaveTextContent("AI");
     expect(
-      screen.getByRole("heading", { name: "No interview sessions yet" }),
+      screen.getByRole("heading", { level: 2, name: "Interviews" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 3, name: "No interviews yet" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Your upcoming and completed interviews will appear here.",
+      ),
     ).toBeInTheDocument();
     expect(redirect).not.toHaveBeenCalled();
   });

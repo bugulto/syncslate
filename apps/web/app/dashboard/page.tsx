@@ -108,15 +108,22 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <div className="mt-10 rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 px-6 py-12 text-center">
-          <h2 className="text-lg font-semibold text-slate-100">
-            No interview sessions yet
+        <section aria-labelledby="interviews-title" className="mt-10">
+          <h2
+            id="interviews-title"
+            className="text-xl font-semibold text-white"
+          >
+            Interviews
           </h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Session creation and interview history will be added in a later
-            milestone.
-          </p>
-        </div>
+          <div className="mt-4 rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 px-6 py-12 text-center">
+            <h3 className="text-lg font-semibold text-slate-100">
+              No interviews yet
+            </h3>
+            <p className="mt-2 text-sm text-slate-400">
+              Your upcoming and completed interviews will appear here.
+            </p>
+          </div>
+        </section>
       </section>
     </main>
   );
