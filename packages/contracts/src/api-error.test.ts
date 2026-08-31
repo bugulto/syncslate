@@ -14,6 +14,8 @@ describe("apiErrorCodeSchema", () => {
   it.each([
     "UNAUTHORIZED",
     "FORBIDDEN",
+    "NOT_FOUND",
+    "CONFLICT",
     "VALIDATION_ERROR",
     "INTERNAL_SERVER_ERROR",
   ])("accepts the %s error code", (code) => {
