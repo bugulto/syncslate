@@ -140,6 +140,9 @@ importers:
 
   packages/database:
     dependencies:
+      '@syncslate/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@types/pg@8.21.0)(pg@8.23.0)
