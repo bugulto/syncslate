@@ -206,13 +206,14 @@ pnpm --filter @syncslate/web exec playwright install chromium
 pnpm db:check
 pnpm db:generate
 pnpm db:migrate
+pnpm db:seed
 pnpm db:studio
 ```
 
-Milestone 1 intentionally contains only `public.profiles`, which references
-Supabase-managed `auth.users`. Do not add problems, sessions, participants, or
-invitations without a new Milestone 2 migration. Product seeding remains
-disabled until deterministic problem seed data is introduced.
+Migration `0000` creates `public.profiles`, which references Supabase-managed
+`auth.users`. Migration `0001` adds problems, starter code, interview sessions,
+and hashed invitation records. `pnpm db:seed` upserts the deterministic built-in
+problem library and is safe to run repeatedly after migrations.
 
 ## Repository layout
 

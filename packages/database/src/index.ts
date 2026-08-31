@@ -1,6 +1,7 @@
 export {
   checkDatabaseConnection,
   createDatabaseClient,
+  type Database,
   type DatabaseClient,
 } from "./client.js";
 export {

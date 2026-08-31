@@ -24,6 +24,7 @@ export function createDatabaseClient(options: CreateDatabaseClientOptions) {
 }
 
 export type DatabaseClient = ReturnType<typeof createDatabaseClient>;
+export type Database = DatabaseClient["db"];
 
 export async function checkDatabaseConnection(
   client: DatabaseClient,

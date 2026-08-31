@@ -14,9 +14,11 @@
     "db:check": "tsx --env-file-if-exists=../../apps/api/.env src/check.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx --env-file-if-exists=../../apps/api/.env src/seed.ts",
     "db:studio": "drizzle-kit studio",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
+    "test:integration": "node --env-file-if-exists=../../apps/api/.env ./node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts",
     "test:unit": "vitest run",
     "typecheck": "tsc --project tsconfig.json --noEmit"
   },

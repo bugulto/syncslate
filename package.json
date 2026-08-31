@@ -12,6 +12,7 @@
     "db:check": "pnpm --filter @syncslate/database db:check",
     "db:generate": "pnpm --filter @syncslate/database db:generate",
     "db:migrate": "pnpm --filter @syncslate/database db:migrate",
+    "db:seed": "pnpm --filter @syncslate/database db:seed",
     "db:studio": "pnpm --filter @syncslate/database db:studio",
     "dev": "turbo run dev",
     "format": "prettier --write .",
