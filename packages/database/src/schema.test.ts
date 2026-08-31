@@ -10,11 +10,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   editingPolicyEnum,
+  interviewSessions,
   problemDifficultyEnum,
   problems,
   problemStarterCode,
   problemVisibilityEnum,
   programmingLanguageEnum,
+  sessionInvitations,
   sessionStatusEnum,
 } from "./schema.js";
 
@@ -74,6 +76,18 @@ describe("problems table", () => {
     expect(ownerForeignKey?.reference().foreignTable).toBeDefined();
     expect(ownerForeignKey?.onDelete).toBe("cascade");
   });
+
+  it("enforces ownership and non-blank problem fields", () => {
+    expect(
+      getTableConfig(problems).checks.map((constraint) => constraint.name),
+    ).toEqual(
+      expect.arrayContaining([
+        "problems_visibility_owner_check",
+        "problems_title_not_blank_check",
+        "problems_slug_not_blank_check",
+      ]),
+    );
+  });
 });
 
 describe("problem starter-code table", () => {
@@ -114,5 +128,107 @@ describe("problem starter-code table", () => {
     );
 
     expect(problemForeignKey?.onDelete).toBe("cascade");
+  });
+
+  it("rejects empty starter code", () => {
+    expect(
+      getTableConfig(problemStarterCode).checks.map(
+        (constraint) => constraint.name,
+      ),
+    ).toContain("problem_starter_code_code_not_blank_check");
+  });
+});
+
+describe("interview sessions table", () => {
+  it("defines authoritative waiting-session state", () => {
+    const config = getTableConfig(interviewSessions);
+
+    expect(config.name).toBe("interview_sessions");
+    expect(interviewSessions.id.hasDefault).toBe(true);
+    expect(interviewSessions.interviewerId.notNull).toBe(true);
+    expect(interviewSessions.problemId.notNull).toBe(false);
+    expect(interviewSessions.status.enumValues).toEqual(sessionStatusValues);
+    expect(interviewSessions.status.hasDefault).toBe(true);
+    expect(interviewSessions.language.enumValues).toEqual(
+      supportedLanguageValues,
+    );
+    expect(interviewSessions.editingPolicy.enumValues).toEqual(
+      editingPolicyValues,
+    );
+    expect(interviewSessions.editingPolicy.hasDefault).toBe(true);
+    expect(interviewSessions.timerState.notNull).toBe(true);
+  });
+
+  it("preserves ownership while allowing deleted problems", () => {
+    const foreignKeys = getTableConfig(interviewSessions).foreignKeys;
+    const interviewerForeignKey = foreignKeys.find(
+      (foreignKey) =>
+        foreignKey.reference().columns[0]?.name === "interviewer_id",
+    );
+    const problemForeignKey = foreignKeys.find(
+      (foreignKey) => foreignKey.reference().columns[0]?.name === "problem_id",
+    );
+
+    expect(interviewerForeignKey?.onDelete).toBe("cascade");
+    expect(problemForeignKey?.onDelete).toBe("set null");
+  });
+
+  it("indexes owner history and enforces valid input", () => {
+    const config = getTableConfig(interviewSessions);
+
+    expect(
+      config.indexes.map((databaseIndex) => databaseIndex.config.name),
+    ).toContain("interview_sessions_interviewer_id_created_at_idx");
+    expect(config.checks.map((constraint) => constraint.name)).toEqual(
+      expect.arrayContaining([
+        "interview_sessions_title_not_blank_check",
+        "interview_sessions_duration_seconds_check",
+      ]),
+    );
+  });
+});
+
+describe("session invitations table", () => {
+  it("stores only required invitation lifecycle data", () => {
+    const config = getTableConfig(sessionInvitations);
+
+    expect(config.name).toBe("session_invitations");
+    expect(sessionInvitations.id.hasDefault).toBe(true);
+    expect(sessionInvitations.sessionId.notNull).toBe(true);
+    expect(sessionInvitations.tokenHash.notNull).toBe(true);
+    expect(sessionInvitations.expiresAt.notNull).toBe(true);
+    expect(sessionInvitations.consumedAt.notNull).toBe(false);
+    expect(sessionInvitations.revokedAt.notNull).toBe(false);
+    expect("rawToken" in sessionInvitations).toBe(false);
+  });
+
+  it("enforces unique hashes and indexes session lookup", () => {
+    const config = getTableConfig(sessionInvitations);
+    const tokenHashConstraint = config.uniqueConstraints.find(
+      (constraint) =>
+        constraint.getName() === "session_invitations_token_hash_unique",
+    );
+
+    expect(tokenHashConstraint?.columns.map((column) => column.name)).toEqual([
+      "token_hash",
+    ]);
+    expect(
+      config.indexes.map((databaseIndex) => databaseIndex.config.name),
+    ).toContain("session_invitations_session_id_idx");
+  });
+
+  it("cascades with sessions and validates token lifecycle fields", () => {
+    const config = getTableConfig(sessionInvitations);
+    const sessionForeignKey = config.foreignKeys.find(
+      (foreignKey) => foreignKey.reference().columns[0]?.name === "session_id",
+    );
+
+    expect(sessionForeignKey?.onDelete).toBe("cascade");
+    expect(config.checks.map((constraint) => constraint.name)).toEqual(
+      expect.arrayContaining([
+        "session_invitations_token_hash_not_blank_check",
+        "session_invitations_expires_after_creation_check",
+      ]),
+    );
   });
 });

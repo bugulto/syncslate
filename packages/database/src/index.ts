@@ -15,4 +15,25 @@ export {
   type CreateProfileIfMissingInput,
   type UpdateProfileMetadataInput,
 } from "./repositories/profile.repository.js";
-export { profiles, type NewProfile, type Profile } from "./schema.js";
+export {
+  editingPolicyEnum,
+  interviewSessions,
+  type InterviewSession,
+  type NewInterviewSession,
+  type NewProblem,
+  type NewProblemStarterCode,
+  type NewProfile,
+  type NewSessionInvitation,
+  problemDifficultyEnum,
+  problems,
+  type Problem,
+  problemStarterCode,
+  type ProblemStarterCode,
+  problemVisibilityEnum,
+  profiles,
+  type Profile,
+  programmingLanguageEnum,
+  sessionInvitations,
+  type SessionInvitation,
+  sessionStatusEnum,
+} from "./schema.js";
