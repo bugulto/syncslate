@@ -135,12 +135,8 @@
           "name": "interview_sessions_interviewer_id_profiles_id_fk",
           "tableFrom": "interview_sessions",
           "tableTo": "profiles",
-          "columnsFrom": [
-            "interviewer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["interviewer_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -148,12 +144,8 @@
           "name": "interview_sessions_problem_id_problems_id_fk",
           "tableFrom": "interview_sessions",
           "tableTo": "problems",
-          "columnsFrom": [
-            "problem_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["problem_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -240,12 +232,8 @@
           "name": "problem_starter_code_problem_id_problems_id_fk",
           "tableFrom": "problem_starter_code",
           "tableTo": "problems",
-          "columnsFrom": [
-            "problem_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["problem_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -255,10 +243,7 @@
         "problem_starter_code_problem_id_language_unique": {
           "name": "problem_starter_code_problem_id_language_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "problem_id",
-            "language"
-          ]
+          "columns": ["problem_id", "language"]
         }
       },
       "policies": {},
@@ -440,12 +425,8 @@
           "name": "problems_owner_id_profiles_id_fk",
           "tableFrom": "problems",
           "tableTo": "profiles",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -513,12 +494,8 @@
           "tableFrom": "profiles",
           "tableTo": "users",
           "schemaTo": "auth",
-          "columnsFrom": [
-            "id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -600,12 +577,8 @@
           "name": "session_invitations_session_id_interview_sessions_id_fk",
           "tableFrom": "session_invitations",
           "tableTo": "interview_sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -615,9 +588,7 @@
         "session_invitations_token_hash_unique": {
           "name": "session_invitations_token_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
+          "columns": ["token_hash"]
         }
       },
       "policies": {},
@@ -638,48 +609,27 @@
     "public.editing_policy": {
       "name": "editing_policy",
       "schema": "public",
-      "values": [
-        "candidate_only",
-        "collaborative",
-        "interviewer_only"
-      ]
+      "values": ["candidate_only", "collaborative", "interviewer_only"]
     },
     "public.problem_difficulty": {
       "name": "problem_difficulty",
       "schema": "public",
-      "values": [
-        "easy",
-        "medium",
-        "hard"
-      ]
+      "values": ["easy", "medium", "hard"]
     },
     "public.problem_visibility": {
       "name": "problem_visibility",
       "schema": "public",
-      "values": [
-        "seeded",
-        "private"
-      ]
+      "values": ["seeded", "private"]
     },
     "public.programming_language": {
       "name": "programming_language",
       "schema": "public",
-      "values": [
-        "typescript",
-        "javascript",
-        "python"
-      ]
+      "values": ["typescript", "javascript", "python"]
     },
     "public.session_status": {
       "name": "session_status",
       "schema": "public",
-      "values": [
-        "waiting",
-        "active",
-        "paused",
-        "completed",
-        "cancelled"
-      ]
+      "values": ["waiting", "active", "paused", "completed", "cancelled"]
     }
   },
   "schemas": {},
