@@ -17,6 +17,7 @@ export {
   type UpdateProfileMetadataInput,
 } from "./repositories/profile.repository.js";
 export {
+  findVisibleProblemById,
   searchVisibleProblems,
   type FindVisibleProblemByIdInput,
   type FindVisibleProblemByIdResult,

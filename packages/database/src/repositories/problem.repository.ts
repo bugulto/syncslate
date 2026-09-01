@@ -30,18 +30,18 @@ export type FindVisibleProblemByIdInput = {
 
 export type FindVisibleProblemByIdResult = ProblemDetail | null;
 
+function visibleProblemCondition(requesterId: string): SQL {
+  return or(
+    eq(problems.visibility, "seeded"),
+    and(eq(problems.visibility, "private"), eq(problems.ownerId, requesterId)),
+  )!;
+}
+
 export async function searchVisibleProblems(
   client: DatabaseClient,
   input: SearchVisibleProblemsInput,
 ): Promise<SearchVisibleProblemsResult> {
-  const visibilityCondition = or(
-    eq(problems.visibility, "seeded"),
-    and(
-      eq(problems.visibility, "private"),
-      eq(problems.ownerId, input.requesterId),
-    ),
-  );
-  const conditions: SQL[] = [visibilityCondition!];
+  const conditions: SQL[] = [visibleProblemCondition(input.requesterId)];
 
   if (input.q !== undefined) {
     const searchPattern = `%${input.q}%`;
@@ -87,4 +87,59 @@ export async function searchVisibleProblems(
         : sql<boolean>`bool_or(${problemStarterCode.language} = ${input.language})`,
     )
     .orderBy(asc(problems.title), asc(problems.id));
+}
+
+export async function findVisibleProblemById(
+  client: DatabaseClient,
+  input: FindVisibleProblemByIdInput,
+): Promise<FindVisibleProblemByIdResult> {
+  const rows = await client.db
+    .select({
+      problem: {
+        id: problems.id,
+        title: problems.title,
+        slug: problems.slug,
+        difficulty: problems.difficulty,
+        tags: problems.tags,
+        visibility: problems.visibility,
+        descriptionMarkdown: problems.descriptionMarkdown,
+        constraintsMarkdown: problems.constraintsMarkdown,
+        examples: problems.examples,
+        interviewerNotesMarkdown: problems.interviewerNotesMarkdown,
+        createdAt: problems.createdAt,
+        updatedAt: problems.updatedAt,
+      },
+      starterCode: {
+        language: problemStarterCode.language,
+        code: problemStarterCode.code,
+      },
+    })
+    .from(problems)
+    .innerJoin(
+      problemStarterCode,
+      eq(problemStarterCode.problemId, problems.id),
+    )
+    .where(
+      and(
+        eq(problems.id, input.problemId),
+        visibleProblemCondition(input.requesterId),
+      ),
+    )
+    .orderBy(asc(problemStarterCode.language));
+
+  const firstRow = rows[0];
+
+  if (firstRow === undefined) {
+    return null;
+  }
+
+  const starterCode = rows.map((row) => row.starterCode);
+
+  return {
+    ...firstRow.problem,
+    availableLanguages: starterCode.map((entry) => entry.language),
+    starterCode,
+    createdAt: firstRow.problem.createdAt.toISOString(),
+    updatedAt: firstRow.problem.updatedAt.toISOString(),
+  };
 }
