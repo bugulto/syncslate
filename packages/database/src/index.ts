@@ -17,6 +17,13 @@ export {
   type UpdateProfileMetadataInput,
 } from "./repositories/profile.repository.js";
 export {
+  searchVisibleProblems,
+  type FindVisibleProblemByIdInput,
+  type FindVisibleProblemByIdResult,
+  type SearchVisibleProblemsInput,
+  type SearchVisibleProblemsResult,
+} from "./repositories/problem.repository.js";
+export {
   editingPolicyEnum,
   interviewSessions,
   type InterviewSession,
