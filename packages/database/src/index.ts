@@ -25,6 +25,17 @@ export {
   type SearchVisibleProblemsResult,
 } from "./repositories/problem.repository.js";
 export {
+  createSession,
+  findSessionByIdForInterviewer,
+  listSessionsByInterviewer,
+  type CreateSessionInput,
+  type CreateSessionResult,
+  type FindSessionByIdForInterviewerInput,
+  type FindSessionByIdForInterviewerResult,
+  type ListSessionsByInterviewerInput,
+  type ListSessionsByInterviewerResult,
+} from "./repositories/session.repository.js";
+export {
   editingPolicyEnum,
   interviewSessions,
   type InterviewSession,
