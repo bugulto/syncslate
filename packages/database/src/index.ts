@@ -17,6 +17,14 @@ export {
   type UpdateProfileMetadataInput,
 } from "./repositories/profile.repository.js";
 export {
+  createInvitationForOwnedSession,
+  revokeInvitationForOwnedSession,
+  type CreateInvitationForOwnedSessionInput,
+  type CreateInvitationForOwnedSessionResult,
+  type RevokeInvitationForOwnedSessionInput,
+  type RevokeInvitationForOwnedSessionResult,
+} from "./repositories/invitation.repository.js";
+export {
   findVisibleProblemById,
   searchVisibleProblems,
   type FindVisibleProblemByIdInput,

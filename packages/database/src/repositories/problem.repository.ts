@@ -72,7 +72,7 @@ export async function searchVisibleProblems(
       availableLanguages: sql<ProblemSummary["availableLanguages"]>`array_agg(
         distinct ${problemStarterCode.language}
         order by ${problemStarterCode.language}
-      )`,
+      )::text[]`,
     })
     .from(problems)
     .innerJoin(
