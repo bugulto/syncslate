@@ -125,6 +125,14 @@ export const listProblemsQuerySchema = z
 
 export type ListProblemsQuery = z.infer<typeof listProblemsQuerySchema>;
 
+export const problemParamsSchema = z
+  .object({
+    problemId: uuidSchema,
+  })
+  .strict();
+
+export type ProblemParams = z.infer<typeof problemParamsSchema>;
+
 export const listProblemsResponseSchema = z
   .object({
     problems: z.array(problemSummarySchema),

@@ -6,6 +6,7 @@ import {
   listProblemsResponseSchema,
   problemDetailSchema,
   problemExampleSchema,
+  problemParamsSchema,
   problemSummarySchema,
 } from "./problems.js";
 
@@ -115,6 +116,26 @@ describe("problem schemas", () => {
 });
 
 describe("problem endpoint contracts", () => {
+  it("accepts a valid problem path parameter", () => {
+    expect(
+      problemParamsSchema.parse({
+        problemId: validProblemSummary.id,
+      }),
+    ).toEqual({ problemId: validProblemSummary.id });
+  });
+
+  it("rejects malformed or unknown problem path parameters", () => {
+    expect(
+      problemParamsSchema.safeParse({ problemId: "not-a-uuid" }).success,
+    ).toBe(false);
+    expect(
+      problemParamsSchema.safeParse({
+        problemId: validProblemSummary.id,
+        ownerId: "me",
+      }).success,
+    ).toBe(false);
+  });
+
   it("accepts supported list filters and trims text", () => {
     expect(
       listProblemsQuerySchema.parse({

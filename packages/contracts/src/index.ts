@@ -64,6 +64,8 @@ export {
   type ProblemDetail,
   problemExampleSchema,
   type ProblemExample,
+  problemParamsSchema,
+  type ProblemParams,
   problemSlugSchema,
   problemStarterCodeSchema,
   type ProblemStarterCode,
