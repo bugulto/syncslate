@@ -39,6 +39,8 @@ function buildMeApp(options: {
     logger: false,
     corsAllowedOrigins: ["http://localhost:3000"],
     checkReadiness: vi.fn(async () => undefined),
+    findVisibleProblemById: vi.fn(async () => null),
+    searchVisibleProblems: vi.fn(async () => []),
     verifyAccessToken: options.verifyAccessToken,
     bootstrapProfile: options.bootstrapProfile,
   });

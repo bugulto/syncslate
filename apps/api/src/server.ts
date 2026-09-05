@@ -2,7 +2,9 @@ import {
   checkDatabaseConnection,
   createDatabaseClient,
   createProfileIfMissing,
+  findVisibleProblemById,
   findProfileByUserId,
+  searchVisibleProblems,
   updateProfileMetadata,
 } from "@syncslate/database";
 
@@ -33,6 +35,8 @@ const app = buildApp({
   corsAllowedOrigins: env.CORS_ALLOWED_ORIGINS,
   checkReadiness: () => checkDatabaseConnection(database),
   bootstrapProfile,
+  findVisibleProblemById: (input) => findVisibleProblemById(database, input),
+  searchVisibleProblems: (input) => searchVisibleProblems(database, input),
   verifyAccessToken,
 });
 

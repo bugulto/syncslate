@@ -5,14 +5,17 @@ import type { AccessTokenVerifier } from "./modules/auth/access-token-verifier.j
 import { authRoutes } from "./modules/auth/auth.routes.js";
 import type { ProfileBootstrapService } from "./modules/auth/profile-bootstrap.js";
 import { healthRoutes } from "./modules/health/health.routes.js";
+import type { ProblemRepositoryDependencies } from "./modules/problems/problem.dependencies.js";
+import { problemRoutes } from "./modules/problems/problem.routes.js";
 import { authenticationPlugin } from "./plugins/authentication.js";
 
-type BuildAppOptions = Pick<FastifyServerOptions, "logger"> & {
-  checkReadiness: () => Promise<void>;
-  bootstrapProfile: ProfileBootstrapService;
-  corsAllowedOrigins: string[];
-  verifyAccessToken: AccessTokenVerifier;
-};
+type BuildAppOptions = Pick<FastifyServerOptions, "logger"> &
+  ProblemRepositoryDependencies & {
+    checkReadiness: () => Promise<void>;
+    bootstrapProfile: ProfileBootstrapService;
+    corsAllowedOrigins: string[];
+    verifyAccessToken: AccessTokenVerifier;
+  };
 
 export function buildApp(options: BuildAppOptions) {
   const app = Fastify({
@@ -35,6 +38,12 @@ export function buildApp(options: BuildAppOptions) {
   app.register(healthRoutes, {
     prefix: "/api/v1",
     checkReadiness: options.checkReadiness,
+  });
+
+  app.register(problemRoutes, {
+    prefix: "/api/v1",
+    searchVisibleProblems: options.searchVisibleProblems,
+    findVisibleProblemById: options.findVisibleProblemById,
   });
 
   return app;

@@ -6,6 +6,10 @@ import type { ProfileBootstrapService } from "../auth/profile-bootstrap.js";
 const apps = new Set<ReturnType<typeof buildApp>>();
 const verifyAccessToken = vi.fn(async () => null);
 const bootstrapProfile = vi.fn<ProfileBootstrapService>();
+const problemDependencies = {
+  findVisibleProblemById: vi.fn(async () => null),
+  searchVisibleProblems: vi.fn(async () => []),
+};
 
 afterEach(async () => {
   await Promise.all([...apps].map((app) => app.close()));
@@ -19,6 +23,7 @@ describe("GET /api/v1/health", () => {
       logger: false,
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness: vi.fn(async () => undefined),
+      ...problemDependencies,
       bootstrapProfile,
       verifyAccessToken,
     });
@@ -40,6 +45,7 @@ describe("GET /api/v1/health", () => {
       logger: false,
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness: vi.fn(async () => undefined),
+      ...problemDependencies,
       bootstrapProfile,
       verifyAccessToken,
     });
@@ -64,6 +70,7 @@ describe("GET /api/v1/ready", () => {
       logger: false,
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness,
+      ...problemDependencies,
       bootstrapProfile,
       verifyAccessToken,
     });
@@ -87,6 +94,7 @@ describe("GET /api/v1/ready", () => {
       logger: false,
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness,
+      ...problemDependencies,
       bootstrapProfile,
       verifyAccessToken,
     });
