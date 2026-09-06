@@ -83,6 +83,8 @@ export {
   type ListSessionsResponse,
   sessionDetailSchema,
   type SessionDetail,
+  sessionParamsSchema,
+  type SessionParams,
   sessionSummarySchema,
   type SessionSummary,
 } from "./sessions.js";

@@ -24,6 +24,14 @@ export const createSessionRequestSchema = z
 
 export type CreateSessionRequest = z.infer<typeof createSessionRequestSchema>;
 
+export const sessionParamsSchema = z
+  .object({
+    sessionId: uuidSchema,
+  })
+  .strict();
+
+export type SessionParams = z.infer<typeof sessionParamsSchema>;
+
 export const sessionSummarySchema = z
   .object({
     id: uuidSchema,

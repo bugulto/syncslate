@@ -79,6 +79,11 @@ function buildProblemApp(options?: {
     corsAllowedOrigins: ["http://localhost:3000"],
     checkReadiness: vi.fn(async () => undefined),
     bootstrapProfile: vi.fn<ProfileBootstrapService>(),
+    createWaitingSession: vi.fn(async () => ({
+      kind: "problem_not_found" as const,
+    })),
+    findSessionByIdForInterviewer: vi.fn(async () => null),
+    listSessionsByInterviewer: vi.fn(async () => []),
     verifyAccessToken,
     ...dependencies,
   });

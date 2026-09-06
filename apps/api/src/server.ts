@@ -2,8 +2,11 @@ import {
   checkDatabaseConnection,
   createDatabaseClient,
   createProfileIfMissing,
+  createSession,
+  findSessionByIdForInterviewer,
   findVisibleProblemById,
   findProfileByUserId,
+  listSessionsByInterviewer,
   searchVisibleProblems,
   updateProfileMetadata,
 } from "@syncslate/database";
@@ -13,6 +16,7 @@ import { parseApiEnv } from "./config/env.js";
 import { createAccessTokenVerifier } from "./modules/auth/access-token-verifier.js";
 import { createProfileBootstrapService } from "./modules/auth/profile-bootstrap.js";
 import { createSupabaseAuthClient } from "./modules/auth/supabase-auth.js";
+import { createSessionCreationService } from "./modules/sessions/session.service.js";
 
 const env = parseApiEnv(process.env);
 const database = createDatabaseClient({
@@ -28,6 +32,10 @@ const bootstrapProfile = createProfileBootstrapService({
   createProfileIfMissing: (input) => createProfileIfMissing(database, input),
   updateProfileMetadata: (input) => updateProfileMetadata(database, input),
 });
+const createWaitingSession = createSessionCreationService({
+  createSession: (input) => createSession(database, input),
+  findVisibleProblemById: (input) => findVisibleProblemById(database, input),
+});
 const app = buildApp({
   logger: {
     level: env.LOG_LEVEL,
@@ -35,7 +43,12 @@ const app = buildApp({
   corsAllowedOrigins: env.CORS_ALLOWED_ORIGINS,
   checkReadiness: () => checkDatabaseConnection(database),
   bootstrapProfile,
+  createWaitingSession,
+  findSessionByIdForInterviewer: (input) =>
+    findSessionByIdForInterviewer(database, input),
   findVisibleProblemById: (input) => findVisibleProblemById(database, input),
+  listSessionsByInterviewer: (input) =>
+    listSessionsByInterviewer(database, input),
   searchVisibleProblems: (input) => searchVisibleProblems(database, input),
   verifyAccessToken,
 });

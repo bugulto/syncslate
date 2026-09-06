@@ -10,6 +10,13 @@ const problemDependencies = {
   findVisibleProblemById: vi.fn(async () => null),
   searchVisibleProblems: vi.fn(async () => []),
 };
+const sessionDependencies = {
+  createWaitingSession: vi.fn(async () => ({
+    kind: "problem_not_found" as const,
+  })),
+  findSessionByIdForInterviewer: vi.fn(async () => null),
+  listSessionsByInterviewer: vi.fn(async () => []),
+};
 
 afterEach(async () => {
   await Promise.all([...apps].map((app) => app.close()));
@@ -24,6 +31,7 @@ describe("GET /api/v1/health", () => {
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness: vi.fn(async () => undefined),
       ...problemDependencies,
+      ...sessionDependencies,
       bootstrapProfile,
       verifyAccessToken,
     });
@@ -46,6 +54,7 @@ describe("GET /api/v1/health", () => {
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness: vi.fn(async () => undefined),
       ...problemDependencies,
+      ...sessionDependencies,
       bootstrapProfile,
       verifyAccessToken,
     });
@@ -71,6 +80,7 @@ describe("GET /api/v1/ready", () => {
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness,
       ...problemDependencies,
+      ...sessionDependencies,
       bootstrapProfile,
       verifyAccessToken,
     });
@@ -95,6 +105,7 @@ describe("GET /api/v1/ready", () => {
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness,
       ...problemDependencies,
+      ...sessionDependencies,
       bootstrapProfile,
       verifyAccessToken,
     });

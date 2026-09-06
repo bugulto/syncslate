@@ -7,10 +7,17 @@ import type { ProfileBootstrapService } from "./modules/auth/profile-bootstrap.j
 import { healthRoutes } from "./modules/health/health.routes.js";
 import type { ProblemRepositoryDependencies } from "./modules/problems/problem.dependencies.js";
 import { problemRoutes } from "./modules/problems/problem.routes.js";
+import {
+  sessionRoutes,
+  type SessionRoutesOptions,
+} from "./modules/sessions/session.routes.js";
 import { authenticationPlugin } from "./plugins/authentication.js";
 
 type BuildAppOptions = Pick<FastifyServerOptions, "logger"> &
   ProblemRepositoryDependencies & {
+    createWaitingSession: SessionRoutesOptions["createWaitingSession"];
+    findSessionByIdForInterviewer: SessionRoutesOptions["findSessionByIdForInterviewer"];
+    listSessionsByInterviewer: SessionRoutesOptions["listSessionsByInterviewer"];
     checkReadiness: () => Promise<void>;
     bootstrapProfile: ProfileBootstrapService;
     corsAllowedOrigins: string[];
@@ -44,6 +51,14 @@ export function buildApp(options: BuildAppOptions) {
     prefix: "/api/v1",
     searchVisibleProblems: options.searchVisibleProblems,
     findVisibleProblemById: options.findVisibleProblemById,
+  });
+
+  app.register(sessionRoutes, {
+    prefix: "/api/v1",
+    bootstrapProfile: options.bootstrapProfile,
+    createWaitingSession: options.createWaitingSession,
+    findSessionByIdForInterviewer: options.findSessionByIdForInterviewer,
+    listSessionsByInterviewer: options.listSessionsByInterviewer,
   });
 
   return app;

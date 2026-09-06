@@ -39,7 +39,12 @@ function buildMeApp(options: {
     logger: false,
     corsAllowedOrigins: ["http://localhost:3000"],
     checkReadiness: vi.fn(async () => undefined),
+    createWaitingSession: vi.fn(async () => ({
+      kind: "problem_not_found" as const,
+    })),
+    findSessionByIdForInterviewer: vi.fn(async () => null),
     findVisibleProblemById: vi.fn(async () => null),
+    listSessionsByInterviewer: vi.fn(async () => []),
     searchVisibleProblems: vi.fn(async () => []),
     verifyAccessToken: options.verifyAccessToken,
     bootstrapProfile: options.bootstrapProfile,

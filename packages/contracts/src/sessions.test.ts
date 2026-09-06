@@ -6,6 +6,7 @@ import {
   getSessionResponseSchema,
   listSessionsResponseSchema,
   sessionDetailSchema,
+  sessionParamsSchema,
   sessionSummarySchema,
 } from "./sessions.js";
 
@@ -99,6 +100,26 @@ describe("createSessionRequestSchema", () => {
         interviewerId: "550e8400-e29b-41d4-a716-446655440099",
         status: "active",
         editingPolicy: "collaborative",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("sessionParamsSchema", () => {
+  it("accepts a valid session path parameter", () => {
+    expect(
+      sessionParamsSchema.parse({ sessionId: validSessionSummary.id }),
+    ).toEqual({ sessionId: validSessionSummary.id });
+  });
+
+  it("rejects malformed or unknown session path parameters", () => {
+    expect(
+      sessionParamsSchema.safeParse({ sessionId: "not-a-uuid" }).success,
+    ).toBe(false);
+    expect(
+      sessionParamsSchema.safeParse({
+        sessionId: validSessionSummary.id,
+        interviewerId: "550e8400-e29b-41d4-a716-446655440099",
       }).success,
     ).toBe(false);
   });
