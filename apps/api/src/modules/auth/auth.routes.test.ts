@@ -39,6 +39,9 @@ function buildMeApp(options: {
     logger: false,
     corsAllowedOrigins: ["http://localhost:3000"],
     checkReadiness: vi.fn(async () => undefined),
+    createInvitation: vi.fn(async () => ({
+      kind: "session_not_found" as const,
+    })),
     createWaitingSession: vi.fn(async () => ({
       kind: "problem_not_found" as const,
     })),
@@ -46,6 +49,9 @@ function buildMeApp(options: {
     findVisibleProblemById: vi.fn(async () => null),
     listSessionsByInterviewer: vi.fn(async () => []),
     searchVisibleProblems: vi.fn(async () => []),
+    revokeInvitation: vi.fn(async () => ({
+      kind: "invitation_not_found" as const,
+    })),
     verifyAccessToken: options.verifyAccessToken,
     bootstrapProfile: options.bootstrapProfile,
   });

@@ -17,6 +17,14 @@ const sessionDependencies = {
   findSessionByIdForInterviewer: vi.fn(async () => null),
   listSessionsByInterviewer: vi.fn(async () => []),
 };
+const invitationDependencies = {
+  createInvitation: vi.fn(async () => ({
+    kind: "session_not_found" as const,
+  })),
+  revokeInvitation: vi.fn(async () => ({
+    kind: "invitation_not_found" as const,
+  })),
+};
 
 afterEach(async () => {
   await Promise.all([...apps].map((app) => app.close()));
@@ -30,6 +38,7 @@ describe("GET /api/v1/health", () => {
       logger: false,
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness: vi.fn(async () => undefined),
+      ...invitationDependencies,
       ...problemDependencies,
       ...sessionDependencies,
       bootstrapProfile,
@@ -53,6 +62,7 @@ describe("GET /api/v1/health", () => {
       logger: false,
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness: vi.fn(async () => undefined),
+      ...invitationDependencies,
       ...problemDependencies,
       ...sessionDependencies,
       bootstrapProfile,
@@ -79,6 +89,7 @@ describe("GET /api/v1/ready", () => {
       logger: false,
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness,
+      ...invitationDependencies,
       ...problemDependencies,
       ...sessionDependencies,
       bootstrapProfile,
@@ -104,6 +115,7 @@ describe("GET /api/v1/ready", () => {
       logger: false,
       corsAllowedOrigins: ["http://localhost:3000"],
       checkReadiness,
+      ...invitationDependencies,
       ...problemDependencies,
       ...sessionDependencies,
       bootstrapProfile,

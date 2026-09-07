@@ -18,6 +18,10 @@ const apiEnvSchema = z.object({
   DATABASE_URL: postgresConnectionStringSchema,
   SUPABASE_URL: z.url().transform((url) => url.replace(/\/+$/, "")),
   SUPABASE_ANON_KEY: z.string().trim().min(1),
+  INVITE_TOKEN_PEPPER: z
+    .string()
+    .trim()
+    .min(32, "Must contain at least 32 characters"),
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

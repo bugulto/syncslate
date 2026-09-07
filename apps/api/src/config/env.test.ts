@@ -5,6 +5,7 @@ import { parseApiEnv } from "./env.js";
 const validSupabaseEnv = {
   SUPABASE_URL: "http://127.0.0.1:54321",
   SUPABASE_ANON_KEY: "test-anon-key",
+  INVITE_TOKEN_PEPPER: "test-invitation-token-pepper-12345",
 };
 
 describe("parseApiEnv", () => {
@@ -37,6 +38,7 @@ describe("parseApiEnv", () => {
         DATABASE_URL: "postgres://user:password@database.example.com/app",
         SUPABASE_URL: "https://project.supabase.co/",
         SUPABASE_ANON_KEY: "production-anon-key",
+        INVITE_TOKEN_PEPPER: "production-invitation-token-pepper",
       }),
     ).toEqual({
       NODE_ENV: "production",
@@ -50,6 +52,7 @@ describe("parseApiEnv", () => {
       DATABASE_URL: "postgres://user:password@database.example.com/app",
       SUPABASE_URL: "https://project.supabase.co",
       SUPABASE_ANON_KEY: "production-anon-key",
+      INVITE_TOKEN_PEPPER: "production-invitation-token-pepper",
     });
   });
 
@@ -79,6 +82,7 @@ describe("parseApiEnv", () => {
   it("rejects missing or invalid Supabase configuration", () => {
     const databaseEnv = {
       DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+      INVITE_TOKEN_PEPPER: validSupabaseEnv.INVITE_TOKEN_PEPPER,
     };
 
     expect(() => parseApiEnv(databaseEnv)).toThrow("Invalid API environment");
@@ -96,5 +100,21 @@ describe("parseApiEnv", () => {
         SUPABASE_ANON_KEY: "   ",
       }),
     ).toThrow("Invalid API environment");
+  });
+
+  it("rejects a missing or weak invitation token pepper", () => {
+    const baseEnv = {
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+      SUPABASE_URL: "http://127.0.0.1:54321",
+      SUPABASE_ANON_KEY: "test-anon-key",
+    };
+
+    expect(() => parseApiEnv(baseEnv)).toThrow("Invalid API environment");
+    expect(() =>
+      parseApiEnv({
+        ...baseEnv,
+        INVITE_TOKEN_PEPPER: "too-short",
+      }),
+    ).toThrow("Must contain at least 32 characters");
   });
 });

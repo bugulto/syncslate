@@ -5,6 +5,10 @@ import type { AccessTokenVerifier } from "./modules/auth/access-token-verifier.j
 import { authRoutes } from "./modules/auth/auth.routes.js";
 import type { ProfileBootstrapService } from "./modules/auth/profile-bootstrap.js";
 import { healthRoutes } from "./modules/health/health.routes.js";
+import {
+  invitationRoutes,
+  type InvitationRoutesOptions,
+} from "./modules/invitations/invitation.routes.js";
 import type { ProblemRepositoryDependencies } from "./modules/problems/problem.dependencies.js";
 import { problemRoutes } from "./modules/problems/problem.routes.js";
 import {
@@ -15,9 +19,11 @@ import { authenticationPlugin } from "./plugins/authentication.js";
 
 type BuildAppOptions = Pick<FastifyServerOptions, "logger"> &
   ProblemRepositoryDependencies & {
+    createInvitation: InvitationRoutesOptions["createInvitation"];
     createWaitingSession: SessionRoutesOptions["createWaitingSession"];
     findSessionByIdForInterviewer: SessionRoutesOptions["findSessionByIdForInterviewer"];
     listSessionsByInterviewer: SessionRoutesOptions["listSessionsByInterviewer"];
+    revokeInvitation: InvitationRoutesOptions["revokeInvitation"];
     checkReadiness: () => Promise<void>;
     bootstrapProfile: ProfileBootstrapService;
     corsAllowedOrigins: string[];
@@ -51,6 +57,12 @@ export function buildApp(options: BuildAppOptions) {
     prefix: "/api/v1",
     searchVisibleProblems: options.searchVisibleProblems,
     findVisibleProblemById: options.findVisibleProblemById,
+  });
+
+  app.register(invitationRoutes, {
+    prefix: "/api/v1",
+    createInvitation: options.createInvitation,
+    revokeInvitation: options.revokeInvitation,
   });
 
   app.register(sessionRoutes, {

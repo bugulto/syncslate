@@ -130,8 +130,14 @@ function buildSessionApp(options?: {
     logger: false,
     corsAllowedOrigins: ["http://localhost:3000"],
     checkReadiness: vi.fn(async () => undefined),
+    createInvitation: vi.fn(async () => ({
+      kind: "session_not_found" as const,
+    })),
     findVisibleProblemById: vi.fn(async () => null),
     searchVisibleProblems: vi.fn(async () => []),
+    revokeInvitation: vi.fn(async () => ({
+      kind: "invitation_not_found" as const,
+    })),
     verifyAccessToken,
     ...routeOptions,
   });
