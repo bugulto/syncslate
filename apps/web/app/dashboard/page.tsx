@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { SignOutButton } from "../../features/auth/sign-out-button";
+import { SessionList } from "../../features/sessions/session-list";
 import { getCurrentUser } from "../../lib/api/current-user";
 import { AuthenticationRequiredError } from "../../lib/api/errors";
 import { createServerApiClient } from "../../lib/api/server";
@@ -125,14 +126,7 @@ export default async function DashboardPage() {
               Create interview
             </Link>
           </div>
-          <div className="mt-4 rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 px-6 py-12 text-center">
-            <h3 className="text-lg font-semibold text-slate-100">
-              No interviews yet
-            </h3>
-            <p className="mt-2 text-sm text-slate-400">
-              Your upcoming and completed interviews will appear here.
-            </p>
-          </div>
+          <SessionList />
         </section>
       </section>
     </main>

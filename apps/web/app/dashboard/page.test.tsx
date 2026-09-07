@@ -22,6 +22,10 @@ vi.mock("../../features/auth/sign-out-button", () => ({
   SignOutButton: () => <button type="button">Sign out</button>,
 }));
 
+vi.mock("../../features/sessions/session-list", () => ({
+  SessionList: () => <div>Authenticated session list</div>,
+}));
+
 const currentUser = {
   id: "00000000-0000-4000-8000-000000000001",
   email: "interviewer@example.com",
@@ -61,14 +65,7 @@ describe("DashboardPage", () => {
     expect(
       screen.getByRole("link", { name: "Create interview" }),
     ).toHaveAttribute("href", "/dashboard/sessions/new");
-    expect(
-      screen.getByRole("heading", { level: 3, name: "No interviews yet" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Your upcoming and completed interviews will appear here.",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Authenticated session list")).toBeInTheDocument();
     expect(redirect).not.toHaveBeenCalled();
   });
 

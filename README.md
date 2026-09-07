@@ -1,15 +1,13 @@
 # SyncSlate
 
 SyncSlate is a production-minded MVP for conducting real-time technical
-interviews. Milestone 1 provides the authenticated interviewer foundation:
-email/password and Google sign-in through Supabase Auth, a protected dashboard,
-Fastify bearer-token verification, conflict-safe profile bootstrap, and
-sign-out.
+interviews. Milestone 2 provides authenticated interviewer accounts, a seeded
+problem library, waiting-session creation and history, owner-only session
+details, and secure revocable candidate invitations.
 
-The next milestone adds problems, interview-session creation, and secure
-candidate invitations. Realtime rooms, Monaco/Yjs collaboration, the Fabric.js
-whiteboard, the server-authoritative timer, persistence, and replay remain on
-the later roadmap.
+Realtime room joining, Monaco/Yjs collaboration, the Fabric.js whiteboard, the
+server-authoritative timer, collaboration persistence, and replay remain on the
+later roadmap.
 
 ## Architecture
 
@@ -23,13 +21,18 @@ Fastify API (token verification and application authorization)
                          │
                          ▼
 Supabase PostgreSQL
-  ├── auth.users      Supabase-owned identity
-  └── public.profiles SyncSlate-owned profile
+  ├── auth.users                 Supabase-owned identity
+  ├── public.profiles            SyncSlate-owned profile
+  ├── public.problems            Seeded/private problem metadata
+  ├── public.problem_starter_code
+  ├── public.interview_sessions  Owner-scoped session history
+  └── public.session_invitations Hashed invitation records
 ```
 
 Supabase proves the interviewer's identity. Fastify remains the application
 authorization boundary, and the browser never accesses PostgreSQL directly.
-Shared Zod contracts validate `/api/v1/me` at both API and web boundaries.
+Shared Zod contracts validate current-user, problem, session, invitation, and
+error payloads at API and web boundaries.
 
 ## Prerequisites
 
@@ -71,6 +74,19 @@ SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET=<google-web-client-secret>
 Never put the Google secret, Supabase service-role key, or other backend
 credentials in a `NEXT_PUBLIC_` variable.
 
+Generate a private invitation-token pepper and place it in `apps/api/.env`:
+
+```bash
+openssl rand -hex 32
+```
+
+```text
+INVITE_TOKEN_PEPPER=<generated-value>
+```
+
+The pepper is required by the API, must contain at least 32 characters, and
+must not be exposed to the browser.
+
 Start local Supabase:
 
 ```bash
@@ -86,10 +102,12 @@ Copy the local values reported by `infra:status` into the application files:
 | `ANON_KEY`            | `SUPABASE_ANON_KEY`                   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
 | `DB_URL`              | `DATABASE_URL`, `DIRECT_DATABASE_URL` | —                               |
 
-Apply the committed Drizzle migration and verify PostgreSQL connectivity:
+Apply the committed Drizzle migrations, seed the built-in problem library, and
+verify PostgreSQL connectivity:
 
 ```bash
 pnpm db:migrate
+pnpm db:seed
 pnpm db:check
 ```
 
@@ -158,13 +176,17 @@ Supabase Auth.
 | API health        | http://localhost:4000/api/v1/health                     |
 | API readiness     | http://localhost:4000/api/v1/ready                      |
 | Current user      | http://localhost:4000/api/v1/me                         |
+| Problems          | http://localhost:4000/api/v1/problems                   |
+| Sessions          | http://localhost:4000/api/v1/sessions                   |
 | Supabase API      | http://127.0.0.1:54321                                  |
 | PostgreSQL        | postgresql://postgres:postgres@127.0.0.1:54322/postgres |
 | Supabase Studio   | http://127.0.0.1:54323                                  |
 | Local email inbox | http://127.0.0.1:54324                                  |
 
 `/health` confirms the API process is responding. `/ready` also checks the
-database. `/me` requires a valid Supabase bearer token.
+database. `/me`, `/problems`, `/sessions`, and invitation management require a
+valid Supabase bearer token. Session and invitation access is scoped to the
+authenticated interviewer.
 
 Stop local Supabase when finished:
 
@@ -187,10 +209,12 @@ pnpm build
 pnpm test:e2e
 ```
 
-`pnpm test` runs the Vitest suites. Fastify injection tests cover protected
-`/me`, including missing and invalid credentials, profile bootstrap, and
-repeated requests. Playwright requires local Supabase and the profile migration;
-it covers anonymous dashboard rejection, email sign-in, dashboard access,
+`pnpm test` runs the Vitest suites. They cover shared contracts, deterministic
+seed validation, repositories, owner-scoped Fastify routes, invitation hashing
+and revocation, and the authenticated web flows. PostgreSQL integration tests
+cover seed idempotency, search/filter behavior, ownership denial, and hash-only
+invitation storage. Playwright requires local Supabase and all migrations; it
+covers anonymous dashboard rejection, email sign-in, dashboard access,
 sign-out, and denial after sign-out. Google consent is verified manually rather
 than automated against Google's external UI.
 
@@ -212,8 +236,10 @@ pnpm db:studio
 
 Migration `0000` creates `public.profiles`, which references Supabase-managed
 `auth.users`. Migration `0001` adds problems, starter code, interview sessions,
-and hashed invitation records. `pnpm db:seed` upserts the deterministic built-in
-problem library and is safe to run repeatedly after migrations.
+and hashed invitation records. `pnpm db:seed` idempotently upserts the
+deterministic built-in problem library and its language-specific starter code.
+Raw invitation tokens never enter PostgreSQL; only HMAC-SHA-256 hashes are
+stored.
 
 ## Repository layout
 
@@ -225,13 +251,23 @@ packages/database/    Drizzle schema, migration, and repositories
 supabase/             Local Supabase configuration
 ```
 
+## Milestone 2 flow
+
+1. Sign in and open `/dashboard`.
+2. Select **Create interview**.
+3. Search/filter the seeded problem library and choose a supported language.
+4. Create a waiting, candidate-only session.
+5. Generate and copy the one-time candidate invitation link.
+6. Revoke the invitation or generate a replacement when needed.
+7. Return to the dashboard to see owner-scoped session history, newest first.
+
+The raw invitation link is available only in the page visit that generated it.
+Refreshing requires generating a new link. Guest invitation inspection and
+joining are intentionally deferred to Milestone 3.
+
 ## Current limitations and next milestone
 
-Milestone 1 does not create interview sessions or display fabricated session
-history. The dashboard intentionally shows **No interviews yet**.
-
-Milestone 2 begins with shared problem/session contracts and additive Drizzle
-migrations for problems, starter code, sessions, and hashed invitation records.
-It must preserve Fastify authorization, opaque UUIDs, database ownership
-constraints, and the separation between Supabase identities and SyncSlate
-profiles.
+Milestone 3 adds candidate invitation inspection/joining, guest credentials,
+participants, realtime room presence, and the first collaboration transport.
+The current `/join/<token>` link therefore identifies the future candidate
+entry route but does not yet admit a guest to a room.
