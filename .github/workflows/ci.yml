@@ -59,6 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
+      INVITE_TOKEN_PEPPER: ci-test-invitation-token-pepper-123456789
       SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID: ci-placeholder-client-id
       SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET: ci-placeholder-client-secret
     steps:

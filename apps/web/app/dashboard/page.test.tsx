@@ -59,6 +59,9 @@ describe("DashboardPage", () => {
       screen.getByRole("heading", { level: 2, name: "Interviews" }),
     ).toBeInTheDocument();
     expect(
+      screen.getByRole("link", { name: "Create interview" }),
+    ).toHaveAttribute("href", "/dashboard/sessions/new");
+    expect(
       screen.getByRole("heading", { level: 3, name: "No interviews yet" }),
     ).toBeInTheDocument();
     expect(

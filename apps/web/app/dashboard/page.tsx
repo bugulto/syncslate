@@ -111,12 +111,20 @@ export default async function DashboardPage() {
         </section>
 
         <section aria-labelledby="interviews-title" className="mt-10">
-          <h2
-            id="interviews-title"
-            className="text-xl font-semibold text-white"
-          >
-            Interviews
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h2
+              id="interviews-title"
+              className="text-xl font-semibold text-white"
+            >
+              Interviews
+            </h2>
+            <Link
+              className="inline-flex rounded-lg bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
+              href="/dashboard/sessions/new"
+            >
+              Create interview
+            </Link>
+          </div>
           <div className="mt-4 rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 px-6 py-12 text-center">
             <h3 className="text-lg font-semibold text-slate-100">
               No interviews yet
