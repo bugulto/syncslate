@@ -1,5 +1,6 @@
 import {
   editingPolicyValues,
+  participantRoleValues,
   problemDifficultyValues,
   problemVisibilityValues,
   sessionStatusValues,
@@ -11,12 +12,14 @@ import { describe, expect, it } from "vitest";
 import {
   editingPolicyEnum,
   interviewSessions,
+  participantRoleEnum,
   problemDifficultyEnum,
   problems,
   problemStarterCode,
   problemVisibilityEnum,
   programmingLanguageEnum,
   sessionInvitations,
+  sessionParticipants,
   sessionStatusEnum,
 } from "./schema.js";
 
@@ -27,6 +30,7 @@ describe("database enums", () => {
     [programmingLanguageEnum, "programming_language", supportedLanguageValues],
     [sessionStatusEnum, "session_status", sessionStatusValues],
     [editingPolicyEnum, "editing_policy", editingPolicyValues],
+    [participantRoleEnum, "participant_role", participantRoleValues],
   ] as const)(
     "maps shared values to the %s PostgreSQL enum",
     (databaseEnum, enumName, sharedValues) => {
@@ -34,6 +38,70 @@ describe("database enums", () => {
       expect(databaseEnum.enumValues).toEqual(sharedValues);
     },
   );
+});
+
+describe("session participants table", () => {
+  it("defines participant identity and lifecycle columns", () => {
+    const config = getTableConfig(sessionParticipants);
+
+    expect(config.name).toBe("session_participants");
+    expect(sessionParticipants.id.hasDefault).toBe(true);
+    expect(sessionParticipants.sessionId.notNull).toBe(true);
+    expect(sessionParticipants.userId.notNull).toBe(false);
+    expect(sessionParticipants.displayName.notNull).toBe(true);
+    expect(sessionParticipants.role.enumValues).toEqual(participantRoleValues);
+    expect(sessionParticipants.joinedAt.notNull).toBe(false);
+    expect(sessionParticipants.leftAt.notNull).toBe(false);
+    expect(sessionParticipants.createdAt.hasDefault).toBe(true);
+  });
+
+  it("references sessions and auth users with cascading cleanup", () => {
+    const foreignKeys = getTableConfig(sessionParticipants).foreignKeys;
+    const sessionForeignKey = foreignKeys.find(
+      (foreignKey) => foreignKey.reference().columns[0]?.name === "session_id",
+    );
+    const userForeignKey = foreignKeys.find(
+      (foreignKey) => foreignKey.reference().columns[0]?.name === "user_id",
+    );
+
+    expect(sessionForeignKey?.onDelete).toBe("cascade");
+    expect(userForeignKey?.onDelete).toBe("cascade");
+  });
+
+  it("indexes participant lookup by session", () => {
+    const config = getTableConfig(sessionParticipants);
+
+    expect(
+      config.indexes.map((databaseIndex) => databaseIndex.config.name),
+    ).toContain("session_participants_session_id_idx");
+  });
+
+  it("allows at most one participant per role in each session", () => {
+    const roleConstraint = getTableConfig(
+      sessionParticipants,
+    ).uniqueConstraints.find(
+      (constraint) =>
+        constraint.getName() === "session_participants_session_id_role_unique",
+    );
+
+    expect(roleConstraint?.columns.map((column) => column.name)).toEqual([
+      "session_id",
+      "role",
+    ]);
+  });
+
+  it("enforces role identity and a non-blank display name", () => {
+    expect(
+      getTableConfig(sessionParticipants).checks.map(
+        (constraint) => constraint.name,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        "session_participants_role_user_check",
+        "session_participants_display_name_not_blank_check",
+      ]),
+    );
+  });
 });
 
 describe("problems table", () => {

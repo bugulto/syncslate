@@ -52,6 +52,8 @@ export {
   type NewProblemStarterCode,
   type NewProfile,
   type NewSessionInvitation,
+  type NewSessionParticipant,
+  participantRoleEnum,
   problemDifficultyEnum,
   problems,
   type Problem,
@@ -63,5 +65,7 @@ export {
   programmingLanguageEnum,
   sessionInvitations,
   type SessionInvitation,
+  sessionParticipants,
+  type SessionParticipant,
   sessionStatusEnum,
 } from "./schema.js";

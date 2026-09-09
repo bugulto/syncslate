@@ -15,6 +15,13 @@
       "when": 1788243268427,
       "tag": "0001_condemned_wonder_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789972089301,
+      "tag": "0002_stiff_ultimates",
+      "breakpoints": true
     }
   ]
 }

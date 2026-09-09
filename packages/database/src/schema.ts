@@ -1,6 +1,7 @@
 import {
   type ProblemExample,
   editingPolicyValues,
+  participantRoleValues,
   problemDifficultyValues,
   problemVisibilityValues,
   sessionStatusValues,
@@ -39,6 +40,11 @@ export const programmingLanguageEnum = pgEnum(
 export const sessionStatusEnum = pgEnum("session_status", sessionStatusValues);
 
 export const editingPolicyEnum = pgEnum("editing_policy", editingPolicyValues);
+
+export const participantRoleEnum = pgEnum(
+  "participant_role",
+  participantRoleValues,
+);
 
 const authSchema = pgSchema("auth");
 
@@ -194,6 +200,47 @@ export const interviewSessions = pgTable(
 
 export type InterviewSession = typeof interviewSessions.$inferSelect;
 export type NewInterviewSession = typeof interviewSessions.$inferInsert;
+
+export const sessionParticipants = pgTable(
+  "session_participants",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => interviewSessions.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => authUsers.id, {
+      onDelete: "cascade",
+    }),
+    displayName: text("display_name").notNull(),
+    role: participantRoleEnum("role").notNull(),
+    joinedAt: timestamp("joined_at", { mode: "date", withTimezone: true }),
+    leftAt: timestamp("left_at", { mode: "date", withTimezone: true }),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "session_participants_role_user_check",
+      sql`(
+        (${table.role} = 'interviewer' and ${table.userId} is not null)
+        or (${table.role} = 'candidate' and ${table.userId} is null)
+      )`,
+    ),
+    check(
+      "session_participants_display_name_not_blank_check",
+      sql`length(btrim(${table.displayName})) > 0`,
+    ),
+    unique("session_participants_session_id_role_unique").on(
+      table.sessionId,
+      table.role,
+    ),
+    index("session_participants_session_id_idx").on(table.sessionId),
+  ],
+);
+
+export type SessionParticipant = typeof sessionParticipants.$inferSelect;
+export type NewSessionParticipant = typeof sessionParticipants.$inferInsert;
 
 export const sessionInvitations = pgTable(
   "session_invitations",
