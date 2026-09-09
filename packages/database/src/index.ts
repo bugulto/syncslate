@@ -17,9 +17,12 @@ export {
   type UpdateProfileMetadataInput,
 } from "./repositories/profile.repository.js";
 export {
+  admitCandidateByTokenHash,
   createInvitationForOwnedSession,
   findInvitationByTokenHash,
   revokeInvitationForOwnedSession,
+  type AdmitCandidateByTokenHashInput,
+  type AdmitCandidateByTokenHashResult,
   type CreateInvitationForOwnedSessionInput,
   type CreateInvitationForOwnedSessionResult,
   type FindInvitationByTokenHashInput,
@@ -47,14 +50,19 @@ export {
 } from "./repositories/problem.repository.js";
 export {
   createSession,
+  findAuthorizedRoomState,
   findSessionByIdForInterviewer,
   listSessionsByInterviewer,
+  type AuthorizedRoomState,
   type CreateSessionInput,
   type CreateSessionResult,
+  type FindAuthorizedRoomStateInput,
+  type FindAuthorizedRoomStateResult,
   type FindSessionByIdForInterviewerInput,
   type FindSessionByIdForInterviewerResult,
   type ListSessionsByInterviewerInput,
   type ListSessionsByInterviewerResult,
+  type RoomAccessPrincipal,
 } from "./repositories/session.repository.js";
 export {
   editingPolicyEnum,

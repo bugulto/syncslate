@@ -13,6 +13,7 @@ import {
   sessionParticipants,
 } from "../schema.js";
 import {
+  admitCandidateByTokenHash,
   createInvitationForOwnedSession,
   findInvitationByTokenHash,
   revokeInvitationForOwnedSession,
@@ -29,6 +30,7 @@ import {
 } from "./problem.repository.js";
 import {
   createSession,
+  findAuthorizedRoomState,
   findSessionByIdForInterviewer,
   listSessionsByInterviewer,
 } from "./session.repository.js";
@@ -43,7 +45,7 @@ describe("database repositories integration", () => {
 
     client = createDatabaseClient({
       connectionString: directDatabaseUrl || process.env.DATABASE_URL,
-      maxConnections: 1,
+      maxConnections: 4,
     });
   });
 
@@ -286,6 +288,40 @@ describe("database repositories integration", () => {
           findCandidateParticipant(transactionClient, ownerSession.id),
         ).resolves.toEqual(candidateParticipant);
 
+        const ownerRoomState = await findAuthorizedRoomState(
+          transactionClient,
+          {
+            sessionId: ownerSession.id,
+            principal: { kind: "user", userId: ownerId },
+          },
+        );
+        expect(ownerRoomState).toMatchObject({
+          session: { id: ownerSession.id, status: "waiting" },
+          problem: { id: ownedProblemId },
+          participants: [
+            { id: ownerParticipant?.id, role: "interviewer" },
+            { id: candidateParticipant?.id, role: "candidate" },
+          ],
+        });
+        expect(ownerRoomState?.problem).not.toHaveProperty(
+          "interviewerNotesMarkdown",
+        );
+        await expect(
+          findAuthorizedRoomState(transactionClient, {
+            sessionId: ownerSession.id,
+            principal: {
+              kind: "guest",
+              participantId: candidateParticipant!.id,
+            },
+          }),
+        ).resolves.toEqual(ownerRoomState);
+        await expect(
+          findAuthorizedRoomState(transactionClient, {
+            sessionId: ownerSession.id,
+            principal: { kind: "user", userId: otherOwnerId },
+          }),
+        ).resolves.toBeNull();
+
         const rolledBackSessionTitle = `Rolled back session ${marker}`;
         await expect(
           createSession(transactionClient, {
@@ -395,6 +431,151 @@ describe("database repositories integration", () => {
       if (!(error instanceof RollbackIntegrationTest)) {
         throw error;
       }
+    }
+  });
+
+  it("admits only one concurrent candidate and rolls back failed exchange", async () => {
+    const ownerId = randomUUID();
+    const problemId = randomUUID();
+    const marker = randomUUID().slice(0, 8);
+    let sessionId = "";
+    let firstTokenHash = "";
+    let secondTokenHash = "";
+
+    try {
+      await client.db.transaction(async (transaction) => {
+        await transaction.execute(sql`
+          insert into auth.users (
+            id,
+            aud,
+            role,
+            email,
+            encrypted_password,
+            email_confirmed_at,
+            created_at,
+            updated_at
+          )
+          values (
+            ${ownerId}::uuid,
+            'authenticated',
+            'authenticated',
+            ${`admission-owner-${marker}@example.com`},
+            '',
+            now(),
+            now(),
+            now()
+          )
+        `);
+        await transaction.insert(profiles).values({
+          id: ownerId,
+          displayName: "Admission Owner",
+        });
+        await transaction.insert(problems).values({
+          id: problemId,
+          ownerId,
+          visibility: "private",
+          title: `Admission problem ${marker}`,
+          slug: `admission-problem-${marker}`,
+          descriptionMarkdown: "Admission test problem.",
+          difficulty: "easy",
+          tags: ["admission"],
+          constraintsMarkdown: null,
+          examples: [],
+          interviewerNotesMarkdown: null,
+        });
+        await transaction.insert(problemStarterCode).values({
+          problemId,
+          language: "typescript",
+          code: "export function admission() {}",
+        });
+
+        const transactionClient = {
+          db: transaction,
+        } as unknown as DatabaseClient;
+        const session = await createSession(transactionClient, {
+          interviewerId: ownerId,
+          interviewerDisplayName: "Admission Owner",
+          problemId,
+          title: `Admission session ${marker}`,
+          language: "typescript",
+          durationSeconds: 3600,
+          status: "waiting",
+          editingPolicy: "candidate_only",
+          timerState: { status: "idle", durationMs: 3_600_000 },
+        });
+        sessionId = session.id;
+        firstTokenHash = createHash("sha256")
+          .update(`first-${marker}`)
+          .digest("hex");
+        secondTokenHash = createHash("sha256")
+          .update(`second-${marker}`)
+          .digest("hex");
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+        await createInvitationForOwnedSession(transactionClient, {
+          interviewerId: ownerId,
+          sessionId,
+          tokenHash: firstTokenHash,
+          expiresAt,
+        });
+        await createInvitationForOwnedSession(transactionClient, {
+          interviewerId: ownerId,
+          sessionId,
+          tokenHash: secondTokenHash,
+          expiresAt,
+        });
+      });
+
+      await expect(
+        admitCandidateByTokenHash(client, {
+          tokenHash: firstTokenHash,
+          displayName: " ",
+          now: new Date(),
+        }),
+      ).rejects.toThrow();
+      const failedInvitation = await findInvitationByTokenHash(client, {
+        tokenHash: firstTokenHash,
+      });
+      expect(failedInvitation?.consumedAt).toBeNull();
+      await expect(
+        findCandidateParticipant(client, sessionId),
+      ).resolves.toBeNull();
+
+      const results = await Promise.all([
+        admitCandidateByTokenHash(client, {
+          tokenHash: firstTokenHash,
+          displayName: "First Candidate",
+          now: new Date(),
+        }),
+        admitCandidateByTokenHash(client, {
+          tokenHash: secondTokenHash,
+          displayName: "Second Candidate",
+          now: new Date(),
+        }),
+      ]);
+
+      expect(results.map((result) => result.kind).sort()).toEqual([
+        "joined",
+        "session_full",
+      ]);
+      const candidates = await client.db
+        .select()
+        .from(sessionParticipants)
+        .where(
+          sql`${sessionParticipants.sessionId} = ${sessionId} and ${sessionParticipants.role} = 'candidate'`,
+        );
+      expect(candidates).toHaveLength(1);
+      const invitations = await client.db
+        .select({ consumedAt: sessionInvitations.consumedAt })
+        .from(sessionInvitations)
+        .where(eq(sessionInvitations.sessionId, sessionId));
+      expect(
+        invitations.filter((invitation) => invitation.consumedAt !== null),
+      ).toHaveLength(1);
+    } finally {
+      await client.db.execute(
+        sql`delete from auth.users where id = ${ownerId}::uuid`,
+      );
     }
   });
 });

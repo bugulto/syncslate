@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { DatabaseClient } from "../client.js";
 import {
+  admitCandidateByTokenHash,
   createInvitationForOwnedSession,
   findInvitationByTokenHash,
   revokeInvitationForOwnedSession,
@@ -15,6 +16,7 @@ const invitationId = "40000000-0000-4000-8000-000000000001";
 const tokenHash = "a".repeat(64);
 const expiresAt = new Date("2026-08-18T00:00:00.000Z");
 const createdAt = new Date("2026-08-17T00:00:00.000Z");
+const now = new Date("2026-08-17T12:00:00.000Z");
 
 type InvitationRow = {
   id: string;
@@ -90,6 +92,83 @@ function createFakeClient({
 
 function compileSql(expression: unknown) {
   return new PgDialect().sqlToQuery(expression as SQL);
+}
+
+type AdmissionRow = {
+  id: string;
+  sessionId: string;
+  expiresAt: Date;
+  consumedAt: Date | null;
+  revokedAt: Date | null;
+  sessionStatus: "waiting" | "active" | "paused" | "completed" | "cancelled";
+};
+
+function createAdmissionClient(options: {
+  admissionRows?: AdmissionRow[];
+  candidateRows?: { id: string }[];
+  participantRows?: Array<{
+    id: string;
+    displayName: string;
+    role: "candidate";
+  }>;
+  consumedRows?: { id: string }[];
+}) {
+  const admissionQuery = {
+    from: vi.fn(),
+    innerJoin: vi.fn(),
+    where: vi.fn(),
+    for: vi.fn(),
+    limit: vi.fn(async () => options.admissionRows ?? []),
+  };
+  admissionQuery.from.mockReturnValue(admissionQuery);
+  admissionQuery.innerJoin.mockReturnValue(admissionQuery);
+  admissionQuery.where.mockReturnValue(admissionQuery);
+  admissionQuery.for.mockReturnValue(admissionQuery);
+
+  const candidateQuery = {
+    from: vi.fn(),
+    where: vi.fn(),
+    limit: vi.fn(async () => options.candidateRows ?? []),
+  };
+  candidateQuery.from.mockReturnValue(candidateQuery);
+  candidateQuery.where.mockReturnValue(candidateQuery);
+
+  const participantInsert = {
+    values: vi.fn(),
+    returning: vi.fn(async () => options.participantRows ?? []),
+  };
+  participantInsert.values.mockReturnValue(participantInsert);
+
+  const invitationUpdate = {
+    set: vi.fn(),
+    where: vi.fn(),
+    returning: vi.fn(async () => options.consumedRows ?? []),
+  };
+  invitationUpdate.set.mockReturnValue(invitationUpdate);
+  invitationUpdate.where.mockReturnValue(invitationUpdate);
+
+  const transaction = {
+    select: vi
+      .fn()
+      .mockReturnValueOnce(admissionQuery)
+      .mockReturnValueOnce(candidateQuery),
+    insert: vi.fn(() => participantInsert),
+    update: vi.fn(() => invitationUpdate),
+  };
+  const db = {
+    transaction: vi.fn(async (callback: (transaction: unknown) => unknown) =>
+      callback(transaction),
+    ),
+  };
+
+  return {
+    client: { db, close: vi.fn() } as unknown as DatabaseClient,
+    admissionQuery,
+    candidateQuery,
+    invitationUpdate,
+    participantInsert,
+    transaction,
+  };
 }
 
 describe("invitation repository", () => {
@@ -196,6 +275,123 @@ describe("invitation repository", () => {
       await expect(
         findInvitationByTokenHash(client, { tokenHash }),
       ).resolves.toBeNull();
+    });
+  });
+
+  describe("admitCandidateByTokenHash", () => {
+    const admissionRow: AdmissionRow = {
+      id: invitationId,
+      sessionId,
+      expiresAt: new Date("2026-08-18T00:00:00.000Z"),
+      consumedAt: null,
+      revokedAt: null,
+      sessionStatus: "waiting",
+    };
+    const participant = {
+      id: "50000000-0000-4000-8000-000000000001",
+      displayName: "Grace Hopper",
+      role: "candidate" as const,
+    };
+
+    it("creates the candidate and consumes the invitation atomically", async () => {
+      const fake = createAdmissionClient({
+        admissionRows: [admissionRow],
+        participantRows: [participant],
+        consumedRows: [{ id: invitationId }],
+      });
+
+      await expect(
+        admitCandidateByTokenHash(fake.client, {
+          tokenHash,
+          displayName: participant.displayName,
+          now,
+        }),
+      ).resolves.toEqual({
+        kind: "joined",
+        sessionId,
+        participant,
+      });
+      expect(fake.admissionQuery.for).toHaveBeenCalledWith("update");
+      expect(fake.participantInsert.values).toHaveBeenCalledWith({
+        sessionId,
+        displayName: participant.displayName,
+        role: "candidate",
+        joinedAt: now,
+      });
+      expect(fake.invitationUpdate.set).toHaveBeenCalledWith({
+        consumedAt: now,
+      });
+      expect(
+        compileSql(fake.admissionQuery.where.mock.calls[0]?.[0]).params,
+      ).toEqual([tokenHash]);
+    });
+
+    it.each([
+      ["not_found", []],
+      ["expired", [{ ...admissionRow, expiresAt: now }]],
+      ["revoked", [{ ...admissionRow, revokedAt: now }]],
+      ["consumed", [{ ...admissionRow, consumedAt: now }]],
+      [
+        "session_closed",
+        [{ ...admissionRow, sessionStatus: "paused" as const }],
+      ],
+      [
+        "session_closed",
+        [{ ...admissionRow, sessionStatus: "completed" as const }],
+      ],
+      [
+        "session_closed",
+        [{ ...admissionRow, sessionStatus: "cancelled" as const }],
+      ],
+    ] as const)("returns %s without mutating state", async (kind, rows) => {
+      const fake = createAdmissionClient({
+        admissionRows: [...rows],
+      });
+
+      await expect(
+        admitCandidateByTokenHash(fake.client, {
+          tokenHash,
+          displayName: participant.displayName,
+          now,
+        }),
+      ).resolves.toEqual({ kind });
+      expect(fake.transaction.insert).not.toHaveBeenCalled();
+      expect(fake.transaction.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects a second candidate without consuming the invitation", async () => {
+      const fake = createAdmissionClient({
+        admissionRows: [admissionRow],
+        candidateRows: [{ id: participant.id }],
+      });
+
+      await expect(
+        admitCandidateByTokenHash(fake.client, {
+          tokenHash,
+          displayName: participant.displayName,
+          now,
+        }),
+      ).resolves.toEqual({ kind: "session_full" });
+      expect(fake.transaction.insert).not.toHaveBeenCalled();
+      expect(fake.transaction.update).not.toHaveBeenCalled();
+    });
+
+    it("fails the transaction when invitation consumption does not complete", async () => {
+      const fake = createAdmissionClient({
+        admissionRows: [admissionRow],
+        participantRows: [participant],
+        consumedRows: [],
+      });
+
+      await expect(
+        admitCandidateByTokenHash(fake.client, {
+          tokenHash,
+          displayName: participant.displayName,
+          now,
+        }),
+      ).rejects.toThrow(
+        "Invitation could not be consumed after candidate insert",
+      );
     });
   });
 });

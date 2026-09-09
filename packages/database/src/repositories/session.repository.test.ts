@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { DatabaseClient } from "../client.js";
 import {
   createSession,
+  findAuthorizedRoomState,
   findSessionByIdForInterviewer,
   listSessionsByInterviewer,
 } from "./session.repository.js";
@@ -105,6 +106,52 @@ function createFakeClient({
 
 function compileSql(expression: unknown) {
   return new PgDialect().sqlToQuery(expression as SQL);
+}
+
+function createRoomStateClient(options: {
+  accessRows: { id: string }[];
+  roomRows?: unknown[];
+  participantRows?: unknown[];
+}) {
+  const accessQuery = {
+    from: vi.fn(),
+    where: vi.fn(),
+    limit: vi.fn(async () => options.accessRows),
+  };
+  accessQuery.from.mockReturnValue(accessQuery);
+  accessQuery.where.mockReturnValue(accessQuery);
+
+  const roomQuery = {
+    from: vi.fn(),
+    leftJoin: vi.fn(),
+    where: vi.fn(),
+    limit: vi.fn(async () => options.roomRows ?? []),
+  };
+  roomQuery.from.mockReturnValue(roomQuery);
+  roomQuery.leftJoin.mockReturnValue(roomQuery);
+  roomQuery.where.mockReturnValue(roomQuery);
+
+  const participantsQuery = {
+    from: vi.fn(),
+    where: vi.fn(),
+    orderBy: vi.fn(async () => options.participantRows ?? []),
+  };
+  participantsQuery.from.mockReturnValue(participantsQuery);
+  participantsQuery.where.mockReturnValue(participantsQuery);
+
+  const db = {
+    select: vi
+      .fn()
+      .mockReturnValueOnce(accessQuery)
+      .mockReturnValueOnce(roomQuery)
+      .mockReturnValueOnce(participantsQuery),
+  };
+
+  return {
+    client: { db, close: vi.fn() } as unknown as DatabaseClient,
+    accessQuery,
+    db,
+  };
 }
 
 describe("session repository", () => {
@@ -329,6 +376,81 @@ describe("session repository", () => {
       expect(where.sql).toContain('"interview_sessions"."id" = $1');
       expect(where.sql).toContain('"interview_sessions"."interviewer_id" = $2');
       expect(where.params).toEqual([sessionId, interviewerId]);
+    });
+  });
+
+  describe("findAuthorizedRoomState", () => {
+    const safeProblem = {
+      id: problemRow.id,
+      title: problemRow.title,
+      difficulty: problemRow.difficulty,
+      tags: problemRow.tags,
+      descriptionMarkdown: problemRow.descriptionMarkdown,
+      constraintsMarkdown: problemRow.constraintsMarkdown,
+      examples: problemRow.examples,
+    };
+    const participant = {
+      id: "50000000-0000-4000-8000-000000000001",
+      displayName: "Ada Lovelace",
+      role: "interviewer" as const,
+    };
+
+    it("returns a candidate-safe persisted room projection for its owner", async () => {
+      const fake = createRoomStateClient({
+        accessRows: [{ id: sessionId }],
+        roomRows: [
+          {
+            session: {
+              id: sessionRow.id,
+              title: sessionRow.title,
+              status: sessionRow.status,
+              language: sessionRow.language,
+              editingPolicy: sessionRow.editingPolicy,
+              durationSeconds: sessionRow.durationSeconds,
+              startedAt: sessionRow.startedAt,
+            },
+            problem: safeProblem,
+          },
+        ],
+        participantRows: [participant],
+      });
+
+      await expect(
+        findAuthorizedRoomState(fake.client, {
+          sessionId,
+          principal: { kind: "user", userId: interviewerId },
+        }),
+      ).resolves.toEqual({
+        session: {
+          id: sessionRow.id,
+          title: sessionRow.title,
+          status: sessionRow.status,
+          language: sessionRow.language,
+          editingPolicy: sessionRow.editingPolicy,
+          durationSeconds: sessionRow.durationSeconds,
+          startedAt: null,
+        },
+        problem: safeProblem,
+        participants: [participant],
+      });
+      expect(
+        compileSql(fake.accessQuery.where.mock.calls[0]?.[0]).params,
+      ).toEqual([sessionId, interviewerId]);
+    });
+
+    it("returns null before loading room data for an unauthorized principal", async () => {
+      const fake = createRoomStateClient({ accessRows: [] });
+
+      await expect(
+        findAuthorizedRoomState(fake.client, {
+          sessionId,
+          principal: {
+            kind: "guest",
+            participantId: "50000000-0000-4000-8000-000000000099",
+          },
+        }),
+      ).resolves.toBeNull();
+      expect(fake.db.select).toHaveBeenCalledTimes(1);
     });
   });
 });

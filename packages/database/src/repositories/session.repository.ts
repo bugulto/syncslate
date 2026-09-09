@@ -1,7 +1,10 @@
 import type {
+  CandidateProblem,
   EditingPolicy,
+  Participant,
   ProblemDetail,
   ProblemSummary,
+  RoomSession,
   SessionDetail,
   SessionStatus,
   SessionSummary,
@@ -43,6 +46,22 @@ export type FindSessionByIdForInterviewerInput = {
 };
 
 export type FindSessionByIdForInterviewerResult = SessionDetail | null;
+
+export type RoomAccessPrincipal =
+  { kind: "user"; userId: string } | { kind: "guest"; participantId: string };
+
+export type FindAuthorizedRoomStateInput = {
+  sessionId: string;
+  principal: RoomAccessPrincipal;
+};
+
+export type AuthorizedRoomState = {
+  session: RoomSession;
+  problem: CandidateProblem | null;
+  participants: Participant[];
+};
+
+export type FindAuthorizedRoomStateResult = AuthorizedRoomState | null;
 
 export async function createSession(
   client: DatabaseClient,
@@ -244,5 +263,86 @@ export async function findSessionByIdForInterviewer(
     endedAt: firstRow.session.endedAt?.toISOString() ?? null,
     createdAt: firstRow.session.createdAt.toISOString(),
     updatedAt: firstRow.session.updatedAt.toISOString(),
+  };
+}
+
+export async function findAuthorizedRoomState(
+  client: DatabaseClient,
+  input: FindAuthorizedRoomStateInput,
+): Promise<FindAuthorizedRoomStateResult> {
+  const hasAccess =
+    input.principal.kind === "user"
+      ? await client.db
+          .select({ id: interviewSessions.id })
+          .from(interviewSessions)
+          .where(
+            and(
+              eq(interviewSessions.id, input.sessionId),
+              eq(interviewSessions.interviewerId, input.principal.userId),
+            ),
+          )
+          .limit(1)
+      : await client.db
+          .select({ id: sessionParticipants.id })
+          .from(sessionParticipants)
+          .where(
+            and(
+              eq(sessionParticipants.sessionId, input.sessionId),
+              eq(sessionParticipants.id, input.principal.participantId),
+            ),
+          )
+          .limit(1);
+
+  if (hasAccess.length === 0) {
+    return null;
+  }
+
+  const [room] = await client.db
+    .select({
+      session: {
+        id: interviewSessions.id,
+        title: interviewSessions.title,
+        status: interviewSessions.status,
+        language: interviewSessions.language,
+        editingPolicy: interviewSessions.editingPolicy,
+        durationSeconds: interviewSessions.durationSeconds,
+        startedAt: interviewSessions.startedAt,
+      },
+      problem: {
+        id: problems.id,
+        title: problems.title,
+        difficulty: problems.difficulty,
+        tags: problems.tags,
+        descriptionMarkdown: problems.descriptionMarkdown,
+        constraintsMarkdown: problems.constraintsMarkdown,
+        examples: problems.examples,
+      },
+    })
+    .from(interviewSessions)
+    .leftJoin(problems, eq(problems.id, interviewSessions.problemId))
+    .where(eq(interviewSessions.id, input.sessionId))
+    .limit(1);
+
+  if (room === undefined) {
+    return null;
+  }
+
+  const participants = await client.db
+    .select({
+      id: sessionParticipants.id,
+      displayName: sessionParticipants.displayName,
+      role: sessionParticipants.role,
+    })
+    .from(sessionParticipants)
+    .where(eq(sessionParticipants.sessionId, input.sessionId))
+    .orderBy(asc(sessionParticipants.createdAt), asc(sessionParticipants.id));
+
+  return {
+    session: {
+      ...room.session,
+      startedAt: room.session.startedAt?.toISOString() ?? null,
+    },
+    problem: room.problem,
+    participants,
   };
 }
