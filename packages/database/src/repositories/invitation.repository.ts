@@ -1,4 +1,4 @@
-import type { InvitationMetadata } from "@syncslate/contracts";
+import type { InvitationMetadata, SessionStatus } from "@syncslate/contracts";
 import { and, eq, isNull } from "drizzle-orm";
 
 import type { DatabaseClient } from "../client.js";
@@ -20,6 +20,20 @@ export type RevokeInvitationForOwnedSessionInput = {
 };
 
 export type RevokeInvitationForOwnedSessionResult = InvitationMetadata | null;
+
+export type FindInvitationByTokenHashInput = {
+  tokenHash: string;
+};
+
+export type FindInvitationByTokenHashResult = {
+  id: string;
+  sessionId: string;
+  expiresAt: Date;
+  consumedAt: Date | null;
+  revokedAt: Date | null;
+  createdAt: Date;
+  sessionStatus: SessionStatus;
+} | null;
 
 function toInvitationMetadata(invitation: {
   id: string;
@@ -118,4 +132,29 @@ export async function revokeInvitationForOwnedSession(
 
   const invitation = revokedInvitations[0];
   return invitation === undefined ? null : toInvitationMetadata(invitation);
+}
+
+export async function findInvitationByTokenHash(
+  client: DatabaseClient,
+  input: FindInvitationByTokenHashInput,
+): Promise<FindInvitationByTokenHashResult> {
+  const [invitation] = await client.db
+    .select({
+      id: sessionInvitations.id,
+      sessionId: sessionInvitations.sessionId,
+      expiresAt: sessionInvitations.expiresAt,
+      consumedAt: sessionInvitations.consumedAt,
+      revokedAt: sessionInvitations.revokedAt,
+      createdAt: sessionInvitations.createdAt,
+      sessionStatus: interviewSessions.status,
+    })
+    .from(sessionInvitations)
+    .innerJoin(
+      interviewSessions,
+      eq(interviewSessions.id, sessionInvitations.sessionId),
+    )
+    .where(eq(sessionInvitations.tokenHash, input.tokenHash))
+    .limit(1);
+
+  return invitation ?? null;
 }

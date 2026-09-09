@@ -46,11 +46,13 @@ const problemRow = {
 
 type FakeClientOptions = {
   insertRows?: { id: string }[];
+  participantInsertError?: Error;
   selectRows?: unknown[];
 };
 
 function createFakeClient({
   insertRows = [],
+  participantInsertError,
   selectRows = [],
 }: FakeClientOptions = {}) {
   const selectQuery = {
@@ -63,21 +65,41 @@ function createFakeClient({
   selectQuery.leftJoin.mockReturnValue(selectQuery);
   selectQuery.where.mockReturnValue(selectQuery);
 
-  const insertQuery = {
+  const sessionInsertQuery = {
     values: vi.fn(),
     returning: vi.fn(async () => insertRows),
   };
-  insertQuery.values.mockReturnValue(insertQuery);
+  sessionInsertQuery.values.mockReturnValue(sessionInsertQuery);
+
+  const participantInsertQuery = {
+    values: vi.fn(async () => {
+      if (participantInsertError) {
+        throw participantInsertError;
+      }
+    }),
+  };
+
+  const transaction = {
+    insert: vi
+      .fn()
+      .mockReturnValueOnce(sessionInsertQuery)
+      .mockReturnValueOnce(participantInsertQuery),
+  };
 
   const db = {
-    insert: vi.fn(() => insertQuery),
+    transaction: vi.fn(async (callback: (transaction: unknown) => unknown) =>
+      callback(transaction),
+    ),
     select: vi.fn(() => selectQuery),
   };
 
   return {
     client: { db, close: vi.fn() } as unknown as DatabaseClient,
-    insertQuery,
+    db,
+    participantInsertQuery,
+    sessionInsertQuery,
     selectQuery,
+    transaction,
   };
 }
 
@@ -98,14 +120,16 @@ describe("session repository", () => {
           },
         },
       ];
-      const { client, insertQuery } = createFakeClient({
-        insertRows: [{ id: sessionId }],
-        selectRows: detailRows,
-      });
+      const { client, participantInsertQuery, sessionInsertQuery } =
+        createFakeClient({
+          insertRows: [{ id: sessionId }],
+          selectRows: detailRows,
+        });
       const timerState = { status: "idle", durationMs: 3_600_000 };
 
       const result = await createSession(client, {
         interviewerId,
+        interviewerDisplayName: "Ada Lovelace",
         problemId,
         title: sessionRow.title,
         language: sessionRow.language,
@@ -115,7 +139,7 @@ describe("session repository", () => {
         timerState,
       });
 
-      expect(insertQuery.values).toHaveBeenCalledWith({
+      expect(sessionInsertQuery.values).toHaveBeenCalledWith({
         interviewerId,
         problemId,
         title: sessionRow.title,
@@ -124,6 +148,12 @@ describe("session repository", () => {
         status: sessionRow.status,
         editingPolicy: sessionRow.editingPolicy,
         timerState,
+      });
+      expect(participantInsertQuery.values).toHaveBeenCalledWith({
+        sessionId,
+        userId: interviewerId,
+        displayName: "Ada Lovelace",
+        role: "interviewer",
       });
       expect(result.id).toBe(sessionId);
       expect(result.problem?.starterCode).toEqual([detailRows[0]?.starterCode]);
@@ -135,6 +165,7 @@ describe("session repository", () => {
       await expect(
         createSession(client, {
           interviewerId,
+          interviewerDisplayName: "Ada Lovelace",
           problemId,
           title: sessionRow.title,
           language: sessionRow.language,
@@ -144,6 +175,27 @@ describe("session repository", () => {
           timerState: {},
         }),
       ).rejects.toThrow("Session insert did not return the created session");
+    });
+
+    it("propagates participant insertion failures from the transaction", async () => {
+      const { client } = createFakeClient({
+        insertRows: [{ id: sessionId }],
+        participantInsertError: new Error("participant insert failed"),
+      });
+
+      await expect(
+        createSession(client, {
+          interviewerId,
+          interviewerDisplayName: "Ada Lovelace",
+          problemId,
+          title: sessionRow.title,
+          language: sessionRow.language,
+          durationSeconds: sessionRow.durationSeconds,
+          status: sessionRow.status,
+          editingPolicy: sessionRow.editingPolicy,
+          timerState: {},
+        }),
+      ).rejects.toThrow("participant insert failed");
     });
   });
 

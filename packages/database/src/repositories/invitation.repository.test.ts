@@ -1,8 +1,11 @@
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it, vi } from "vitest";
 
 import type { DatabaseClient } from "../client.js";
 import {
   createInvitationForOwnedSession,
+  findInvitationByTokenHash,
   revokeInvitationForOwnedSession,
 } from "./invitation.repository.js";
 
@@ -34,20 +37,26 @@ const invitationRow: InvitationRow = {
 type FakeClientOptions = {
   ownedSession?: boolean;
   insertRows?: InvitationRow[];
+  lookupRows?: Array<InvitationRow & { sessionStatus: "waiting" | "active" }>;
   updateRows?: InvitationRow[];
 };
 
 function createFakeClient({
   ownedSession = true,
   insertRows = [],
+  lookupRows,
   updateRows = [],
 }: FakeClientOptions = {}) {
   const selectQuery = {
     from: vi.fn(),
+    innerJoin: vi.fn(),
     where: vi.fn(),
-    limit: vi.fn(async () => (ownedSession ? [{ id: sessionId }] : [])),
+    limit: vi.fn(
+      async () => lookupRows ?? (ownedSession ? [{ id: sessionId }] : []),
+    ),
   };
   selectQuery.from.mockReturnValue(selectQuery);
+  selectQuery.innerJoin.mockReturnValue(selectQuery);
   selectQuery.where.mockReturnValue(selectQuery);
 
   const insertQuery = {
@@ -74,8 +83,13 @@ function createFakeClient({
     client: { db, close: vi.fn() } as unknown as DatabaseClient,
     db,
     insertQuery,
+    selectQuery,
     updateQuery,
   };
+}
+
+function compileSql(expression: unknown) {
+  return new PgDialect().sqlToQuery(expression as SQL);
 }
 
 describe("invitation repository", () => {
@@ -153,6 +167,35 @@ describe("invitation repository", () => {
         }),
       ).resolves.toBeNull();
       expect(db.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("findInvitationByTokenHash", () => {
+    it("returns invitation lifecycle and session status without the hash", async () => {
+      const lookupRow = {
+        ...invitationRow,
+        sessionStatus: "waiting" as const,
+      };
+      const { client, selectQuery } = createFakeClient({
+        lookupRows: [lookupRow],
+      });
+
+      const result = await findInvitationByTokenHash(client, { tokenHash });
+
+      expect(result).toEqual(lookupRow);
+      expect(result).not.toHaveProperty("tokenHash");
+      expect(result).not.toHaveProperty("rawToken");
+      expect(compileSql(selectQuery.where.mock.calls[0]?.[0]).params).toEqual([
+        tokenHash,
+      ]);
+    });
+
+    it("returns null for an unknown hash", async () => {
+      const { client } = createFakeClient({ lookupRows: [] });
+
+      await expect(
+        findInvitationByTokenHash(client, { tokenHash }),
+      ).resolves.toBeNull();
     });
   });
 });

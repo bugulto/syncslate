@@ -10,11 +10,19 @@ import {
   problemStarterCode,
   profiles,
   sessionInvitations,
+  sessionParticipants,
 } from "../schema.js";
 import {
   createInvitationForOwnedSession,
+  findInvitationByTokenHash,
   revokeInvitationForOwnedSession,
 } from "./invitation.repository.js";
+import {
+  findCandidateParticipant,
+  findInterviewerParticipant,
+  findParticipantById,
+  listParticipantsBySession,
+} from "./participant.repository.js";
 import {
   findVisibleProblemById,
   searchVisibleProblems,
@@ -208,6 +216,7 @@ describe("database repositories integration", () => {
 
         const ownerSession = await createSession(transactionClient, {
           interviewerId: ownerId,
+          interviewerDisplayName: "Repository Owner",
           problemId: ownedProblemId,
           title: `Owner session ${marker}`,
           language: "typescript",
@@ -218,6 +227,7 @@ describe("database repositories integration", () => {
         });
         const otherSession = await createSession(transactionClient, {
           interviewerId: otherOwnerId,
+          interviewerDisplayName: "Other Owner",
           problemId: otherProblemId,
           title: `Other session ${marker}`,
           language: "typescript",
@@ -235,6 +245,67 @@ describe("database repositories integration", () => {
         expect(ownerSessions.some(({ id }) => id === otherSession.id)).toBe(
           false,
         );
+
+        const [ownerParticipant] = await transaction
+          .select()
+          .from(sessionParticipants)
+          .where(eq(sessionParticipants.sessionId, ownerSession.id));
+        expect(ownerParticipant).toMatchObject({
+          sessionId: ownerSession.id,
+          userId: ownerId,
+          displayName: "Repository Owner",
+          role: "interviewer",
+          joinedAt: null,
+          leftAt: null,
+        });
+
+        await expect(
+          findParticipantById(transactionClient, ownerParticipant!.id),
+        ).resolves.toEqual(ownerParticipant);
+        await expect(
+          findInterviewerParticipant(transactionClient, ownerSession.id),
+        ).resolves.toEqual(ownerParticipant);
+        await expect(
+          findCandidateParticipant(transactionClient, ownerSession.id),
+        ).resolves.toBeNull();
+
+        const [candidateParticipant] = await transaction
+          .insert(sessionParticipants)
+          .values({
+            sessionId: ownerSession.id,
+            displayName: "Repository Candidate",
+            role: "candidate",
+          })
+          .returning();
+        const participants = await listParticipantsBySession(
+          transactionClient,
+          ownerSession.id,
+        );
+        expect(participants).toEqual([ownerParticipant, candidateParticipant]);
+        await expect(
+          findCandidateParticipant(transactionClient, ownerSession.id),
+        ).resolves.toEqual(candidateParticipant);
+
+        const rolledBackSessionTitle = `Rolled back session ${marker}`;
+        await expect(
+          createSession(transactionClient, {
+            interviewerId: ownerId,
+            interviewerDisplayName: " ",
+            problemId: ownedProblemId,
+            title: rolledBackSessionTitle,
+            language: "typescript",
+            durationSeconds: 3600,
+            status: "waiting",
+            editingPolicy: "candidate_only",
+            timerState: { status: "idle", durationMs: 3_600_000 },
+          }),
+        ).rejects.toThrow();
+        const rolledBackSessions = await transaction
+          .select({ id: interviewSessions.id })
+          .from(interviewSessions)
+          .where(eq(interviewSessions.title, rolledBackSessionTitle));
+        expect(rolledBackSessions).toHaveLength(0);
+
         await expect(
           findSessionByIdForInterviewer(transactionClient, {
             interviewerId: otherOwnerId,
@@ -260,6 +331,17 @@ describe("database repositories integration", () => {
         expect(invitation).not.toBeNull();
         expect(invitation).not.toHaveProperty("tokenHash");
         expect(invitation).not.toHaveProperty("rawToken");
+        const invitationLookup = await findInvitationByTokenHash(
+          transactionClient,
+          { tokenHash },
+        );
+        expect(invitationLookup).toMatchObject({
+          id: invitation?.id,
+          sessionId: ownerSession.id,
+          sessionStatus: "waiting",
+        });
+        expect(invitationLookup).not.toHaveProperty("tokenHash");
+        expect(invitationLookup).not.toHaveProperty("rawToken");
         await expect(
           createInvitationForOwnedSession(transactionClient, {
             interviewerId: otherOwnerId,

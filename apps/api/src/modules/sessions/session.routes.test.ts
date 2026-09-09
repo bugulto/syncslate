@@ -213,6 +213,7 @@ describe("session routes", () => {
     );
     expect(routeOptions.createWaitingSession).toHaveBeenCalledWith({
       interviewerId: userId,
+      interviewerDisplayName: currentUser.displayName,
       title: "Frontend interview",
       problemId,
       language: "typescript",

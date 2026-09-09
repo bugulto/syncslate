@@ -44,6 +44,7 @@ const session: SessionDetail = {
 
 const creationInput = {
   interviewerId,
+  interviewerDisplayName: "Ada Lovelace",
   problemId,
   title: session.title,
   language: "typescript" as const,

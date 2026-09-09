@@ -10,10 +10,16 @@ import type {
 import { and, asc, desc, eq } from "drizzle-orm";
 
 import type { DatabaseClient } from "../client.js";
-import { interviewSessions, problemStarterCode, problems } from "../schema.js";
+import {
+  interviewSessions,
+  problemStarterCode,
+  problems,
+  sessionParticipants,
+} from "../schema.js";
 
 export type CreateSessionInput = {
   interviewerId: string;
+  interviewerDisplayName: string;
   problemId: string;
   title: string;
   language: SupportedLanguage;
@@ -42,32 +48,43 @@ export async function createSession(
   client: DatabaseClient,
   input: CreateSessionInput,
 ): Promise<CreateSessionResult> {
-  const [createdSession] = await client.db
-    .insert(interviewSessions)
-    .values({
-      interviewerId: input.interviewerId,
-      problemId: input.problemId,
-      title: input.title,
-      language: input.language,
-      durationSeconds: input.durationSeconds,
-      status: input.status,
-      editingPolicy: input.editingPolicy,
-      timerState: input.timerState,
-    })
-    .returning({ id: interviewSessions.id });
+  const createdSessionId = await client.db.transaction(async (transaction) => {
+    const [createdSession] = await transaction
+      .insert(interviewSessions)
+      .values({
+        interviewerId: input.interviewerId,
+        problemId: input.problemId,
+        title: input.title,
+        language: input.language,
+        durationSeconds: input.durationSeconds,
+        status: input.status,
+        editingPolicy: input.editingPolicy,
+        timerState: input.timerState,
+      })
+      .returning({ id: interviewSessions.id });
 
-  if (createdSession === undefined) {
-    throw new Error("Session insert did not return the created session");
-  }
+    if (createdSession === undefined) {
+      throw new Error("Session insert did not return the created session");
+    }
+
+    await transaction.insert(sessionParticipants).values({
+      sessionId: createdSession.id,
+      userId: input.interviewerId,
+      displayName: input.interviewerDisplayName,
+      role: "interviewer",
+    });
+
+    return createdSession.id;
+  });
 
   const session = await findSessionByIdForInterviewer(client, {
     interviewerId: input.interviewerId,
-    sessionId: createdSession.id,
+    sessionId: createdSessionId,
   });
 
   if (session === null) {
     throw new Error(
-      `Created session ${createdSession.id} could not be loaded for its owner`,
+      `Created session ${createdSessionId} could not be loaded for its owner`,
     );
   }
 

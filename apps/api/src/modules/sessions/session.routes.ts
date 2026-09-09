@@ -78,10 +78,11 @@ export const sessionRoutes: FastifyPluginAsync<SessionRoutesOptions> = async (
 
       try {
         const user = authenticatedUser(request);
-        await options.bootstrapProfile(user);
+        const profile = await options.bootstrapProfile(user);
 
         const result = await options.createWaitingSession({
           interviewerId: user.principal.userId,
+          interviewerDisplayName: profile.displayName,
           ...bodyResult.data,
         });
 

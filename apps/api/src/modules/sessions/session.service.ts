@@ -9,6 +9,7 @@ type SessionCreationDependencies = Pick<
 
 export type CreateWaitingSessionInput = CreateSessionRequest & {
   interviewerId: string;
+  interviewerDisplayName: string;
 };
 
 export type CreateWaitingSessionResult =
@@ -43,6 +44,7 @@ export function createSessionCreationService(
 
     const session = await dependencies.createSession({
       interviewerId: input.interviewerId,
+      interviewerDisplayName: input.interviewerDisplayName,
       problemId: input.problemId,
       title: input.title,
       language: input.language,

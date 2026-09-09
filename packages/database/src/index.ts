@@ -18,12 +18,25 @@ export {
 } from "./repositories/profile.repository.js";
 export {
   createInvitationForOwnedSession,
+  findInvitationByTokenHash,
   revokeInvitationForOwnedSession,
   type CreateInvitationForOwnedSessionInput,
   type CreateInvitationForOwnedSessionResult,
+  type FindInvitationByTokenHashInput,
+  type FindInvitationByTokenHashResult,
   type RevokeInvitationForOwnedSessionInput,
   type RevokeInvitationForOwnedSessionResult,
 } from "./repositories/invitation.repository.js";
+export {
+  findCandidateParticipant,
+  findInterviewerParticipant,
+  findParticipantById,
+  listParticipantsBySession,
+  type FindCandidateParticipantResult,
+  type FindInterviewerParticipantResult,
+  type FindParticipantByIdResult,
+  type ListParticipantsBySessionResult,
+} from "./repositories/participant.repository.js";
 export {
   findVisibleProblemById,
   searchVisibleProblems,
