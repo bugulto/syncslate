@@ -43,3 +43,15 @@ export const editingPolicyValues = [
 export const editingPolicySchema = z.enum(editingPolicyValues);
 
 export type EditingPolicy = z.infer<typeof editingPolicySchema>;
+
+export const participantRoleValues = ["interviewer", "candidate"] as const;
+
+export const participantRoleSchema = z.enum(participantRoleValues);
+
+export type ParticipantRole = z.infer<typeof participantRoleSchema>;
+
+export const presenceStatusValues = ["connected", "disconnected"] as const;
+
+export const presenceStatusSchema = z.enum(presenceStatusValues);
+
+export type PresenceStatus = z.infer<typeof presenceStatusSchema>;

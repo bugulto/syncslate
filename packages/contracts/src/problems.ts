@@ -114,6 +114,20 @@ export const problemDetailSchema = z
 
 export type ProblemDetail = z.infer<typeof problemDetailSchema>;
 
+export const candidateProblemSchema = z
+  .object({
+    id: uuidSchema,
+    title: titleSchema,
+    difficulty: problemDifficultySchema,
+    tags: tagsSchema,
+    descriptionMarkdown: markdownSchema,
+    constraintsMarkdown: markdownSchema.nullable(),
+    examples: z.array(problemExampleSchema),
+  })
+  .strict();
+
+export type CandidateProblem = z.infer<typeof candidateProblemSchema>;
+
 export const listProblemsQuerySchema = z
   .object({
     q: searchQuerySchema.optional(),

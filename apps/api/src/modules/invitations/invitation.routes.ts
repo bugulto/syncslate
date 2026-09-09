@@ -8,6 +8,7 @@ import {
 } from "@syncslate/contracts";
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 
+import { isUserAuthPrincipal } from "../auth/auth-principal.js";
 import type {
   CreateInvitationService,
   RevokeInvitationService,
@@ -41,8 +42,8 @@ function sendInvitationError(
 function authenticatedUserId(request: FastifyRequest): string {
   const principal = request.authPrincipal;
 
-  if (principal === null) {
-    throw new Error("Authenticated principal missing after authentication");
+  if (!isUserAuthPrincipal(principal)) {
+    throw new Error("Authenticated user principal required");
   }
 
   return principal.userId;

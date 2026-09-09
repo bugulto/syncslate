@@ -7,6 +7,10 @@ import {
   problemDifficultySchema,
   problemVisibilityValues,
   problemVisibilitySchema,
+  participantRoleSchema,
+  participantRoleValues,
+  presenceStatusSchema,
+  presenceStatusValues,
   sessionStatusValues,
   sessionStatusSchema,
   supportedLanguageValues,
@@ -31,6 +35,21 @@ describe("problem domain enums", () => {
   it("rejects unsupported problem values", () => {
     expect(problemVisibilitySchema.safeParse("public").success).toBe(false);
     expect(problemDifficultySchema.safeParse("expert").success).toBe(false);
+  });
+});
+
+describe("participant domain enums", () => {
+  it.each(participantRoleValues)("accepts the %s role", (role) => {
+    expect(participantRoleSchema.parse(role)).toBe(role);
+  });
+
+  it.each(presenceStatusValues)("accepts the %s status", (status) => {
+    expect(presenceStatusSchema.parse(status)).toBe(status);
+  });
+
+  it("rejects unsupported participant values", () => {
+    expect(participantRoleSchema.safeParse("observer").success).toBe(false);
+    expect(presenceStatusSchema.safeParse("reconnecting").success).toBe(false);
   });
 });
 

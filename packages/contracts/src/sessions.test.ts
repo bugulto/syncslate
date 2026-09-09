@@ -8,6 +8,8 @@ import {
   sessionDetailSchema,
   sessionParamsSchema,
   sessionSummarySchema,
+  startSessionRequestSchema,
+  startSessionResponseSchema,
 } from "./sessions.js";
 
 const problemSummary = {
@@ -101,6 +103,21 @@ describe("createSessionRequestSchema", () => {
         status: "active",
         editingPolicy: "collaborative",
       }).success,
+    ).toBe(false);
+  });
+});
+
+describe("session start contracts", () => {
+  it("accepts an empty request and the authoritative session response", () => {
+    expect(startSessionRequestSchema.parse({})).toEqual({});
+    expect(
+      startSessionResponseSchema.parse({ session: validSessionDetail }),
+    ).toEqual({ session: validSessionDetail });
+  });
+
+  it("rejects client-supplied lifecycle fields", () => {
+    expect(
+      startSessionRequestSchema.safeParse({ startedAt: Date.now() }).success,
     ).toBe(false);
   });
 });

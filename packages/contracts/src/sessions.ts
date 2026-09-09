@@ -89,3 +89,15 @@ export const getSessionResponseSchema = z
   .strict();
 
 export type GetSessionResponse = z.infer<typeof getSessionResponseSchema>;
+
+export const startSessionRequestSchema = z.object({}).strict();
+
+export type StartSessionRequest = z.infer<typeof startSessionRequestSchema>;
+
+export const startSessionResponseSchema = z
+  .object({
+    session: sessionDetailSchema,
+  })
+  .strict();
+
+export type StartSessionResponse = z.infer<typeof startSessionResponseSchema>;

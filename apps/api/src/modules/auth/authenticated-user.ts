@@ -1,7 +1,7 @@
-import type { AuthPrincipal } from "./auth-principal.js";
+import type { UserAuthPrincipal } from "./auth-principal.js";
 
 export type AuthenticatedUser = {
-  principal: AuthPrincipal;
+  principal: UserAuthPrincipal;
   email: string | null;
   displayName: string | null;
   avatarUrl: string | null;

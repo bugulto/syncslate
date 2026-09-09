@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   createInvitationResponseSchema,
+  inspectInvitationResponseSchema,
+  invitationParamsSchema,
   invitationMetadataSchema,
+  joinInvitationRequestSchema,
+  joinInvitationResponseSchema,
   rawInvitationTokenSchema,
   revokeInvitationResponseSchema,
 } from "./invitations.js";
@@ -36,6 +40,77 @@ describe("invitationMetadataSchema", () => {
       invitationMetadataSchema.safeParse({
         ...validInvitation,
         expiresAt: "tomorrow",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("candidate invitation contracts", () => {
+  const preview = {
+    session: {
+      title: "Backend interview",
+      status: "waiting" as const,
+      language: "typescript" as const,
+      durationSeconds: 2700,
+      problem: { title: "Two Sum", difficulty: "easy" as const },
+    },
+    expiresAt: validInvitation.expiresAt,
+  };
+
+  it("validates invitation path parameters", () => {
+    expect(invitationParamsSchema.parse({ rawToken: validRawToken })).toEqual({
+      rawToken: validRawToken,
+    });
+    expect(
+      invitationParamsSchema.safeParse({
+        rawToken: validRawToken,
+        tokenHash: "secret",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts only a minimal candidate-safe inspection response", () => {
+    expect(
+      inspectInvitationResponseSchema.parse({ invitation: preview }),
+    ).toEqual({ invitation: preview });
+    expect(
+      inspectInvitationResponseSchema.safeParse({
+        invitation: {
+          ...preview,
+          tokenHash: "secret",
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("normalizes candidate display names and rejects injected identity", () => {
+    expect(
+      joinInvitationRequestSchema.parse({ displayName: "  Grace Hopper  " }),
+    ).toEqual({ displayName: "Grace Hopper" });
+    expect(
+      joinInvitationRequestSchema.safeParse({
+        displayName: "Grace Hopper",
+        role: "interviewer",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts a candidate credential response without internal user data", () => {
+    const response = {
+      participant: {
+        id: "550e8400-e29b-41d4-a716-446655440004",
+        displayName: "Grace Hopper",
+        role: "candidate" as const,
+      },
+      guestAccessToken: "g".repeat(64),
+      expiresAt: "2026-09-01T12:00:00.000Z",
+    };
+
+    expect(joinInvitationResponseSchema.parse(response)).toEqual(response);
+    expect(
+      joinInvitationResponseSchema.safeParse({
+        ...response,
+        participant: { ...response.participant, userId: validInvitation.id },
       }).success,
     ).toBe(false);
   });
