@@ -1,9 +1,15 @@
-import type { InvitationMetadata, SessionStatus } from "@syncslate/contracts";
+import type {
+  InvitationMetadata,
+  ProblemDifficulty,
+  SessionStatus,
+  SupportedLanguage,
+} from "@syncslate/contracts";
 import { and, eq, isNull } from "drizzle-orm";
 
 import type { DatabaseClient } from "../client.js";
 import {
   interviewSessions,
+  problems,
   sessionInvitations,
   sessionParticipants,
 } from "../schema.js";
@@ -37,6 +43,24 @@ export type FindInvitationByTokenHashResult = {
   revokedAt: Date | null;
   createdAt: Date;
   sessionStatus: SessionStatus;
+} | null;
+
+export type FindInvitationPreviewByTokenHashResult = {
+  sessionId: string;
+  expiresAt: Date;
+  consumedAt: Date | null;
+  revokedAt: Date | null;
+  candidateParticipantId: string | null;
+  session: {
+    title: string;
+    status: SessionStatus;
+    language: SupportedLanguage;
+    durationSeconds: number;
+    problem: {
+      title: string;
+      difficulty: ProblemDifficulty;
+    } | null;
+  };
 } | null;
 
 export type AdmitCandidateByTokenHashInput = {
@@ -184,6 +208,66 @@ export async function findInvitationByTokenHash(
     .limit(1);
 
   return invitation ?? null;
+}
+
+export async function findInvitationPreviewByTokenHash(
+  client: DatabaseClient,
+  input: FindInvitationByTokenHashInput,
+): Promise<FindInvitationPreviewByTokenHashResult> {
+  const [row] = await client.db
+    .select({
+      sessionId: sessionInvitations.sessionId,
+      expiresAt: sessionInvitations.expiresAt,
+      consumedAt: sessionInvitations.consumedAt,
+      revokedAt: sessionInvitations.revokedAt,
+      candidateParticipantId: sessionParticipants.id,
+      sessionTitle: interviewSessions.title,
+      sessionStatus: interviewSessions.status,
+      language: interviewSessions.language,
+      durationSeconds: interviewSessions.durationSeconds,
+      problemTitle: problems.title,
+      problemDifficulty: problems.difficulty,
+    })
+    .from(sessionInvitations)
+    .innerJoin(
+      interviewSessions,
+      eq(interviewSessions.id, sessionInvitations.sessionId),
+    )
+    .leftJoin(problems, eq(problems.id, interviewSessions.problemId))
+    .leftJoin(
+      sessionParticipants,
+      and(
+        eq(sessionParticipants.sessionId, interviewSessions.id),
+        eq(sessionParticipants.role, "candidate"),
+      ),
+    )
+    .where(eq(sessionInvitations.tokenHash, input.tokenHash))
+    .limit(1);
+
+  if (row === undefined) {
+    return null;
+  }
+
+  return {
+    sessionId: row.sessionId,
+    expiresAt: row.expiresAt,
+    consumedAt: row.consumedAt,
+    revokedAt: row.revokedAt,
+    candidateParticipantId: row.candidateParticipantId,
+    session: {
+      title: row.sessionTitle,
+      status: row.sessionStatus,
+      language: row.language,
+      durationSeconds: row.durationSeconds,
+      problem:
+        row.problemTitle === null || row.problemDifficulty === null
+          ? null
+          : {
+              title: row.problemTitle,
+              difficulty: row.problemDifficulty,
+            },
+    },
+  };
 }
 
 export async function admitCandidateByTokenHash(

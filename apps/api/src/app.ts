@@ -1,5 +1,5 @@
 import cors from "@fastify/cors";
-import Fastify, { type FastifyServerOptions } from "fastify";
+import Fastify, { LogController, type FastifyServerOptions } from "fastify";
 
 import type { AccessTokenVerifier } from "./modules/auth/access-token-verifier.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
@@ -20,6 +20,8 @@ import { authenticationPlugin } from "./plugins/authentication.js";
 type BuildAppOptions = Pick<FastifyServerOptions, "logger"> &
   ProblemRepositoryDependencies & {
     createInvitation: InvitationRoutesOptions["createInvitation"];
+    inspectInvitation: InvitationRoutesOptions["inspectInvitation"];
+    joinInvitation: InvitationRoutesOptions["joinInvitation"];
     createWaitingSession: SessionRoutesOptions["createWaitingSession"];
     findSessionByIdForInterviewer: SessionRoutesOptions["findSessionByIdForInterviewer"];
     listSessionsByInterviewer: SessionRoutesOptions["listSessionsByInterviewer"];
@@ -32,6 +34,10 @@ type BuildAppOptions = Pick<FastifyServerOptions, "logger"> &
 
 export function buildApp(options: BuildAppOptions) {
   const app = Fastify({
+    logController: new LogController({
+      disableRequestLogging: (request) =>
+        request.url.startsWith("/api/v1/invitations/"),
+    }),
     logger: options.logger ?? true,
   });
 
@@ -62,6 +68,8 @@ export function buildApp(options: BuildAppOptions) {
   app.register(invitationRoutes, {
     prefix: "/api/v1",
     createInvitation: options.createInvitation,
+    inspectInvitation: options.inspectInvitation,
+    joinInvitation: options.joinInvitation,
     revokeInvitation: options.revokeInvitation,
   });
 

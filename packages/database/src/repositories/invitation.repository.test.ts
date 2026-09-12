@@ -7,6 +7,7 @@ import {
   admitCandidateByTokenHash,
   createInvitationForOwnedSession,
   findInvitationByTokenHash,
+  findInvitationPreviewByTokenHash,
   revokeInvitationForOwnedSession,
 } from "./invitation.repository.js";
 
@@ -40,6 +41,19 @@ type FakeClientOptions = {
   ownedSession?: boolean;
   insertRows?: InvitationRow[];
   lookupRows?: Array<InvitationRow & { sessionStatus: "waiting" | "active" }>;
+  previewRows?: Array<{
+    sessionId: string;
+    expiresAt: Date;
+    consumedAt: Date | null;
+    revokedAt: Date | null;
+    candidateParticipantId: string | null;
+    sessionTitle: string;
+    sessionStatus: "waiting" | "active";
+    language: "typescript";
+    durationSeconds: number;
+    problemTitle: string | null;
+    problemDifficulty: "easy" | null;
+  }>;
   updateRows?: InvitationRow[];
 };
 
@@ -47,18 +61,22 @@ function createFakeClient({
   ownedSession = true,
   insertRows = [],
   lookupRows,
+  previewRows,
   updateRows = [],
 }: FakeClientOptions = {}) {
   const selectQuery = {
     from: vi.fn(),
     innerJoin: vi.fn(),
+    leftJoin: vi.fn(),
     where: vi.fn(),
     limit: vi.fn(
-      async () => lookupRows ?? (ownedSession ? [{ id: sessionId }] : []),
+      async () =>
+        lookupRows ?? previewRows ?? (ownedSession ? [{ id: sessionId }] : []),
     ),
   };
   selectQuery.from.mockReturnValue(selectQuery);
   selectQuery.innerJoin.mockReturnValue(selectQuery);
+  selectQuery.leftJoin.mockReturnValue(selectQuery);
   selectQuery.where.mockReturnValue(selectQuery);
 
   const insertQuery = {
@@ -275,6 +293,73 @@ describe("invitation repository", () => {
       await expect(
         findInvitationByTokenHash(client, { tokenHash }),
       ).resolves.toBeNull();
+    });
+  });
+
+  describe("findInvitationPreviewByTokenHash", () => {
+    it("returns only candidate-safe session preview fields", async () => {
+      const previewRow = {
+        sessionId,
+        expiresAt,
+        consumedAt: null,
+        revokedAt: null,
+        candidateParticipantId: null,
+        sessionTitle: "Backend interview",
+        sessionStatus: "waiting" as const,
+        language: "typescript" as const,
+        durationSeconds: 3_600,
+        problemTitle: "Two Sum",
+        problemDifficulty: "easy" as const,
+      };
+      const { client, selectQuery } = createFakeClient({
+        previewRows: [previewRow],
+      });
+
+      await expect(
+        findInvitationPreviewByTokenHash(client, { tokenHash }),
+      ).resolves.toEqual({
+        sessionId,
+        expiresAt,
+        consumedAt: null,
+        revokedAt: null,
+        candidateParticipantId: null,
+        session: {
+          title: "Backend interview",
+          status: "waiting",
+          language: "typescript",
+          durationSeconds: 3_600,
+          problem: { title: "Two Sum", difficulty: "easy" },
+        },
+      });
+      expect(selectQuery.leftJoin).toHaveBeenCalledTimes(2);
+      expect(compileSql(selectQuery.where.mock.calls[0]?.[0]).params).toEqual([
+        tokenHash,
+      ]);
+    });
+
+    it("returns a null problem when the session has none", async () => {
+      const { client } = createFakeClient({
+        previewRows: [
+          {
+            sessionId,
+            expiresAt,
+            consumedAt: null,
+            revokedAt: null,
+            candidateParticipantId: null,
+            sessionTitle: "General interview",
+            sessionStatus: "active",
+            language: "typescript",
+            durationSeconds: 1_800,
+            problemTitle: null,
+            problemDifficulty: null,
+          },
+        ],
+      });
+
+      const result = await findInvitationPreviewByTokenHash(client, {
+        tokenHash,
+      });
+      expect(result?.session.problem).toBeNull();
     });
   });
 

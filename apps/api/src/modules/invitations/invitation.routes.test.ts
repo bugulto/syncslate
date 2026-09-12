@@ -1,6 +1,8 @@
 import {
   apiErrorSchema,
   createInvitationResponseSchema,
+  inspectInvitationResponseSchema,
+  joinInvitationResponseSchema,
   revokeInvitationResponseSchema,
   type InvitationMetadata,
 } from "@syncslate/contracts";
@@ -12,6 +14,8 @@ import type { AuthenticatedUser } from "../auth/authenticated-user.js";
 import type { InvitationRoutesOptions } from "./invitation.routes.js";
 import type {
   CreateInvitationService,
+  InspectInvitationService,
+  JoinInvitationService,
   RevokeInvitationService,
 } from "./invitation.service.js";
 
@@ -20,6 +24,7 @@ const userId = "550e8400-e29b-41d4-a716-446655440000";
 const sessionId = "30000000-0000-4000-8000-000000000001";
 const invitationId = "40000000-0000-4000-8000-000000000001";
 const rawToken = "A".repeat(43);
+const guestAccessToken = "guest-access-token-".repeat(8);
 const authorization = { authorization: "Bearer valid-access-token" };
 
 const authenticatedUser: AuthenticatedUser = {
@@ -43,6 +48,23 @@ const revokedInvitation = {
   revokedAt: "2026-09-19T13:00:00.000Z",
 };
 
+const participant = {
+  id: "50000000-0000-4000-8000-000000000001",
+  displayName: "Grace Hopper",
+  role: "candidate" as const,
+};
+
+const preview = {
+  session: {
+    title: "Backend interview",
+    status: "waiting" as const,
+    language: "typescript" as const,
+    durationSeconds: 3_600,
+    problem: { title: "Two Sum", difficulty: "easy" as const },
+  },
+  expiresAt: "2026-09-20T12:00:00.000Z",
+};
+
 function createInvitationRouteOptions(
   overrides: Partial<InvitationRoutesOptions> = {},
 ): InvitationRoutesOptions {
@@ -50,6 +72,15 @@ function createInvitationRouteOptions(
     createInvitation: vi
       .fn<CreateInvitationService>()
       .mockResolvedValue({ kind: "created", invitation, rawToken }),
+    inspectInvitation: vi
+      .fn<InspectInvitationService>()
+      .mockResolvedValue({ kind: "available", invitation: preview }),
+    joinInvitation: vi.fn<JoinInvitationService>().mockResolvedValue({
+      kind: "joined",
+      participant,
+      guestAccessToken,
+      expiresAt: "2026-09-19T12:30:00.000Z",
+    }),
     revokeInvitation: vi
       .fn<RevokeInvitationService>()
       .mockResolvedValue({ kind: "revoked", invitation: revokedInvitation }),
@@ -92,6 +123,138 @@ afterEach(async () => {
 });
 
 describe("invitation routes", () => {
+  it("publicly inspects a valid invitation without consuming it", async () => {
+    const routeOptions = createInvitationRouteOptions();
+    const { app } = buildInvitationApp({ routeOptions });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/invitations/${rawToken}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["cache-control"]).toBe("no-store");
+    expect(inspectInvitationResponseSchema.parse(response.json())).toEqual({
+      invitation: preview,
+    });
+    expect(routeOptions.inspectInvitation).toHaveBeenCalledWith({ rawToken });
+    expect(routeOptions.joinInvitation).not.toHaveBeenCalled();
+  });
+
+  it("joins with a bounded display name and returns a no-store credential", async () => {
+    const routeOptions = createInvitationRouteOptions();
+    const { app } = buildInvitationApp({ routeOptions });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/invitations/${rawToken}/join`,
+      payload: { displayName: "  Grace Hopper  " },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.headers["cache-control"]).toBe("no-store");
+    expect(joinInvitationResponseSchema.parse(response.json())).toEqual({
+      participant,
+      guestAccessToken,
+      expiresAt: "2026-09-19T12:30:00.000Z",
+    });
+    expect(routeOptions.joinInvitation).toHaveBeenCalledWith({
+      rawToken,
+      displayName: "Grace Hopper",
+    });
+  });
+
+  it.each([
+    ["not_found", 404, "NOT_FOUND"],
+    ["expired", 404, "NOT_FOUND"],
+    ["revoked", 404, "NOT_FOUND"],
+    ["consumed", 404, "NOT_FOUND"],
+    ["session_closed", 409, "CONFLICT"],
+    ["session_full", 409, "CONFLICT"],
+  ] as const)(
+    "maps an unavailable %s invitation to a safe response",
+    async (kind, status, code) => {
+      const routeOptions = createInvitationRouteOptions({
+        inspectInvitation: vi
+          .fn<InspectInvitationService>()
+          .mockResolvedValue({ kind }),
+      });
+      const { app } = buildInvitationApp({ routeOptions });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/v1/invitations/${rawToken}`,
+      });
+
+      expect(response.statusCode).toBe(status);
+      expect(response.headers["cache-control"]).toBe("no-store");
+      expect(apiErrorSchema.parse(response.json())).toMatchObject({
+        error: { code },
+      });
+      expect(response.body).not.toContain(rawToken);
+    },
+  );
+
+  it("rejects malformed public input before calling admission services", async () => {
+    const routeOptions = createInvitationRouteOptions();
+    const { app } = buildInvitationApp({ routeOptions });
+
+    const inspectResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/invitations/short",
+    });
+    const joinResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/invitations/${rawToken}/join`,
+      payload: { displayName: "x" },
+    });
+
+    expect(inspectResponse.statusCode).toBe(400);
+    expect(joinResponse.statusCode).toBe(400);
+    expect(routeOptions.inspectInvitation).not.toHaveBeenCalled();
+    expect(routeOptions.joinInvitation).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized join payloads with a safe no-store error", async () => {
+    const routeOptions = createInvitationRouteOptions();
+    const { app } = buildInvitationApp({ routeOptions });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/invitations/${rawToken}/join`,
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({ displayName: "x".repeat(3_000) }),
+    });
+
+    expect(response.statusCode).toBe(413);
+    expect(response.headers["cache-control"]).toBe("no-store");
+    expect(apiErrorSchema.parse(response.json())).toMatchObject({
+      error: { code: "VALIDATION_ERROR" },
+    });
+    expect(routeOptions.joinInvitation).not.toHaveBeenCalled();
+  });
+
+  it("bounds repeated public invitation attempts", async () => {
+    const { app } = buildInvitationApp();
+
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/v1/invitations/${rawToken}`,
+      });
+      expect(response.statusCode).toBe(200);
+    }
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/invitations/${rawToken}`,
+    });
+    expect(response.statusCode).toBe(429);
+    expect(apiErrorSchema.parse(response.json())).toMatchObject({
+      error: { code: "RATE_LIMITED" },
+    });
+  });
+
   it.each([
     `/api/v1/sessions/${sessionId}/invitations`,
     `/api/v1/sessions/${sessionId}/invitations/revoke`,

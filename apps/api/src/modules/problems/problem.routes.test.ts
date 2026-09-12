@@ -82,6 +82,8 @@ function buildProblemApp(options?: {
     createInvitation: vi.fn(async () => ({
       kind: "session_not_found" as const,
     })),
+    inspectInvitation: vi.fn(async () => ({ kind: "not_found" as const })),
+    joinInvitation: vi.fn(async () => ({ kind: "not_found" as const })),
     createWaitingSession: vi.fn(async () => ({
       kind: "problem_not_found" as const,
     })),

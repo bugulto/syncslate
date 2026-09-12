@@ -335,7 +335,11 @@ export async function findAuthorizedRoomState(
     })
     .from(sessionParticipants)
     .where(eq(sessionParticipants.sessionId, input.sessionId))
-    .orderBy(asc(sessionParticipants.createdAt), asc(sessionParticipants.id));
+    .orderBy(
+      asc(sessionParticipants.role),
+      asc(sessionParticipants.createdAt),
+      asc(sessionParticipants.id),
+    );
 
   return {
     session: {

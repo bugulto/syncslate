@@ -20,6 +20,7 @@
     "@syncslate/database": "workspace:*",
     "fastify": "^5.10.0",
     "fastify-plugin": "^6.0.0",
+    "jose": "^6.2.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {

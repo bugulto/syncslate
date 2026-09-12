@@ -6,6 +6,7 @@ const validSupabaseEnv = {
   SUPABASE_URL: "http://127.0.0.1:54321",
   SUPABASE_ANON_KEY: "test-anon-key",
   INVITE_TOKEN_PEPPER: "test-invitation-token-pepper-12345",
+  GUEST_JWT_SECRET: "test-guest-jwt-secret-at-least-32-characters",
 };
 
 describe("parseApiEnv", () => {
@@ -22,6 +23,7 @@ describe("parseApiEnv", () => {
       LOG_LEVEL: "info",
       CORS_ALLOWED_ORIGINS: ["http://localhost:3000"],
       DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+      GUEST_JWT_TTL_SECONDS: 1_800,
       ...validSupabaseEnv,
     });
   });
@@ -39,6 +41,8 @@ describe("parseApiEnv", () => {
         SUPABASE_URL: "https://project.supabase.co/",
         SUPABASE_ANON_KEY: "production-anon-key",
         INVITE_TOKEN_PEPPER: "production-invitation-token-pepper",
+        GUEST_JWT_SECRET: "production-guest-token-secret-123456789",
+        GUEST_JWT_TTL_SECONDS: "900",
       }),
     ).toEqual({
       NODE_ENV: "production",
@@ -53,6 +57,8 @@ describe("parseApiEnv", () => {
       SUPABASE_URL: "https://project.supabase.co",
       SUPABASE_ANON_KEY: "production-anon-key",
       INVITE_TOKEN_PEPPER: "production-invitation-token-pepper",
+      GUEST_JWT_SECRET: "production-guest-token-secret-123456789",
+      GUEST_JWT_TTL_SECONDS: 900,
     });
   });
 
@@ -83,6 +89,7 @@ describe("parseApiEnv", () => {
     const databaseEnv = {
       DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
       INVITE_TOKEN_PEPPER: validSupabaseEnv.INVITE_TOKEN_PEPPER,
+      GUEST_JWT_SECRET: validSupabaseEnv.GUEST_JWT_SECRET,
     };
 
     expect(() => parseApiEnv(databaseEnv)).toThrow("Invalid API environment");
@@ -116,5 +123,32 @@ describe("parseApiEnv", () => {
         INVITE_TOKEN_PEPPER: "too-short",
       }),
     ).toThrow("Must contain at least 32 characters");
+  });
+
+  it("rejects missing or weak guest-token configuration", () => {
+    const databaseEnv = {
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+      SUPABASE_URL: validSupabaseEnv.SUPABASE_URL,
+      SUPABASE_ANON_KEY: validSupabaseEnv.SUPABASE_ANON_KEY,
+      INVITE_TOKEN_PEPPER: validSupabaseEnv.INVITE_TOKEN_PEPPER,
+    };
+
+    expect(() => parseApiEnv(databaseEnv)).toThrow("Invalid API environment");
+    expect(() =>
+      parseApiEnv({ ...databaseEnv, GUEST_JWT_SECRET: "too-short" }),
+    ).toThrow("Must contain at least 32 characters");
+    expect(() =>
+      parseApiEnv({
+        ...databaseEnv,
+        GUEST_JWT_SECRET: validSupabaseEnv.GUEST_JWT_SECRET,
+        GUEST_JWT_TTL_SECONDS: "60",
+      }),
+    ).toThrow("Invalid API environment");
+    expect(() =>
+      parseApiEnv({
+        ...databaseEnv,
+        GUEST_JWT_SECRET: databaseEnv.INVITE_TOKEN_PEPPER,
+      }),
+    ).toThrow("Must differ from INVITE_TOKEN_PEPPER");
   });
 });

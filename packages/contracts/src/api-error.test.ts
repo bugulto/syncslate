@@ -17,6 +17,7 @@ describe("apiErrorCodeSchema", () => {
     "NOT_FOUND",
     "CONFLICT",
     "VALIDATION_ERROR",
+    "RATE_LIMITED",
     "INTERNAL_SERVER_ERROR",
   ])("accepts the %s error code", (code) => {
     expect(apiErrorCodeSchema.parse(code)).toBe(code);

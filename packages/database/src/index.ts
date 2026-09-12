@@ -20,6 +20,7 @@ export {
   admitCandidateByTokenHash,
   createInvitationForOwnedSession,
   findInvitationByTokenHash,
+  findInvitationPreviewByTokenHash,
   revokeInvitationForOwnedSession,
   type AdmitCandidateByTokenHashInput,
   type AdmitCandidateByTokenHashResult,
@@ -27,6 +28,7 @@ export {
   type CreateInvitationForOwnedSessionResult,
   type FindInvitationByTokenHashInput,
   type FindInvitationByTokenHashResult,
+  type FindInvitationPreviewByTokenHashResult,
   type RevokeInvitationForOwnedSessionInput,
   type RevokeInvitationForOwnedSessionResult,
 } from "./repositories/invitation.repository.js";

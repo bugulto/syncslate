@@ -21,6 +21,8 @@ const invitationDependencies = {
   createInvitation: vi.fn(async () => ({
     kind: "session_not_found" as const,
   })),
+  inspectInvitation: vi.fn(async () => ({ kind: "not_found" as const })),
+  joinInvitation: vi.fn(async () => ({ kind: "not_found" as const })),
   revokeInvitation: vi.fn(async () => ({
     kind: "invitation_not_found" as const,
   })),

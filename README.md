@@ -1,9 +1,9 @@
 # SyncSlate
 
 SyncSlate is a production-minded MVP for conducting real-time technical
-interviews. Milestone 2 provides authenticated interviewer accounts, a seeded
-problem library, waiting-session creation and history, owner-only session
-details, and secure revocable candidate invitations.
+interviews. The current Milestone 3 foundation adds persisted room participants,
+public invitation inspection, atomic candidate admission, and short-lived guest
+credentials to the Milestone 2 interviewer and session flow.
 
 Realtime room joining, Monaco/Yjs collaboration, the Fabric.js whiteboard, the
 server-authoritative timer, collaboration persistence, and replay remain on the
@@ -82,10 +82,13 @@ openssl rand -hex 32
 
 ```text
 INVITE_TOKEN_PEPPER=<generated-value>
+GUEST_JWT_SECRET=<a-second-generated-value>
+GUEST_JWT_TTL_SECONDS=1800
 ```
 
-The pepper is required by the API, must contain at least 32 characters, and
-must not be exposed to the browser.
+Both secrets are required by the API, must contain at least 32 characters, must
+use separate values, and must not be exposed to the browser. The guest lifetime
+may be set from 300 to 86400 seconds.
 
 Start local Supabase:
 

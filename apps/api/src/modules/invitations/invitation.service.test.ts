@@ -4,11 +4,15 @@ import type { InvitationMetadata } from "@syncslate/contracts";
 import { describe, expect, it, vi } from "vitest";
 
 import type {
+  AdmitCandidateByTokenHashRepository,
   CreateInvitationForOwnedSessionRepository,
+  FindInvitationPreviewByTokenHashRepository,
   RevokeInvitationForOwnedSessionRepository,
 } from "./invitation.dependencies.js";
 import {
   createInvitationCreationService,
+  createInvitationInspectionService,
+  createInvitationJoinService,
   createInvitationRevocationService,
   DEFAULT_INVITATION_TTL_MS,
 } from "./invitation.service.js";
@@ -19,6 +23,7 @@ const invitationId = "40000000-0000-4000-8000-000000000001";
 const rawToken = "A".repeat(43);
 const tokenPepper = "test-invitation-token-pepper-12345";
 const now = new Date("2026-09-19T12:00:00.000Z");
+const participantId = "50000000-0000-4000-8000-000000000001";
 
 const invitation: InvitationMetadata = {
   id: invitationId,
@@ -142,5 +147,133 @@ describe("createInvitationRevocationService", () => {
     await expect(service({ interviewerId, sessionId })).rejects.toThrow(
       "missing its revocation timestamp",
     );
+  });
+});
+
+describe("createInvitationInspectionService", () => {
+  const previewRow = {
+    sessionId,
+    expiresAt: new Date("2026-09-20T12:00:00.000Z"),
+    consumedAt: null,
+    revokedAt: null,
+    candidateParticipantId: null,
+    session: {
+      title: "Backend interview",
+      status: "waiting" as const,
+      language: "typescript" as const,
+      durationSeconds: 3_600,
+      problem: { title: "Two Sum", difficulty: "easy" as const },
+    },
+  };
+
+  it("returns the minimal preview and does not expose storage metadata", async () => {
+    const findInvitationPreviewByTokenHash = vi
+      .fn<FindInvitationPreviewByTokenHashRepository>()
+      .mockResolvedValue(previewRow);
+    const service = createInvitationInspectionService({
+      findInvitationPreviewByTokenHash,
+      tokenPepper,
+      now: () => now,
+    });
+
+    const result = await service({ rawToken });
+    expect(result).toEqual({
+      kind: "available",
+      invitation: {
+        session: previewRow.session,
+        expiresAt: previewRow.expiresAt.toISOString(),
+      },
+    });
+    expect(result).not.toHaveProperty("sessionId");
+    expect(result).not.toHaveProperty("tokenHash");
+    expect(findInvitationPreviewByTokenHash).toHaveBeenCalledWith({
+      tokenHash: createHmac("sha256", tokenPepper)
+        .update(rawToken)
+        .digest("hex"),
+    });
+  });
+
+  it.each([
+    ["not_found", null],
+    ["expired", { ...previewRow, expiresAt: now }],
+    ["revoked", { ...previewRow, revokedAt: now }],
+    ["consumed", { ...previewRow, consumedAt: now }],
+    [
+      "session_closed",
+      {
+        ...previewRow,
+        session: { ...previewRow.session, status: "completed" },
+      },
+    ],
+    ["session_full", { ...previewRow, candidateParticipantId: participantId }],
+  ] as const)("returns %s for an unavailable invitation", async (kind, row) => {
+    const service = createInvitationInspectionService({
+      findInvitationPreviewByTokenHash: vi
+        .fn<FindInvitationPreviewByTokenHashRepository>()
+        .mockResolvedValue(row),
+      tokenPepper,
+      now: () => now,
+    });
+
+    await expect(service({ rawToken })).resolves.toEqual({ kind });
+  });
+});
+
+describe("createInvitationJoinService", () => {
+  it("atomically admits the candidate before issuing a scoped token", async () => {
+    const admitCandidateByTokenHash = vi
+      .fn<AdmitCandidateByTokenHashRepository>()
+      .mockResolvedValue({
+        kind: "joined",
+        sessionId,
+        participant: {
+          id: participantId,
+          displayName: "Grace Hopper",
+          role: "candidate",
+        },
+      });
+    const issueGuestToken = vi.fn(async () => ({
+      token: "guest-access-token-".repeat(8),
+      expiresAt: new Date("2026-09-19T12:30:00.000Z"),
+    }));
+    const service = createInvitationJoinService({
+      admitCandidateByTokenHash,
+      issueGuestToken,
+      tokenPepper,
+      now: () => now,
+    });
+
+    await expect(
+      service({ rawToken, displayName: "Grace Hopper" }),
+    ).resolves.toMatchObject({
+      kind: "joined",
+      guestAccessToken: "guest-access-token-".repeat(8),
+      expiresAt: "2026-09-19T12:30:00.000Z",
+    });
+    expect(admitCandidateByTokenHash).toHaveBeenCalledWith({
+      tokenHash: createHmac("sha256", tokenPepper)
+        .update(rawToken)
+        .digest("hex"),
+      displayName: "Grace Hopper",
+      now,
+    });
+    expect(issueGuestToken).toHaveBeenCalledWith({ participantId, sessionId });
+  });
+
+  it("does not issue a token when admission fails", async () => {
+    const issueGuestToken = vi.fn();
+    const service = createInvitationJoinService({
+      admitCandidateByTokenHash: vi
+        .fn<AdmitCandidateByTokenHashRepository>()
+        .mockResolvedValue({ kind: "consumed" }),
+      issueGuestToken,
+      tokenPepper,
+      now: () => now,
+    });
+
+    await expect(
+      service({ rawToken, displayName: "Grace Hopper" }),
+    ).resolves.toEqual({ kind: "consumed" });
+    expect(issueGuestToken).not.toHaveBeenCalled();
   });
 });

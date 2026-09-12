@@ -133,6 +133,8 @@ function buildSessionApp(options?: {
     createInvitation: vi.fn(async () => ({
       kind: "session_not_found" as const,
     })),
+    inspectInvitation: vi.fn(async () => ({ kind: "not_found" as const })),
+    joinInvitation: vi.fn(async () => ({ kind: "not_found" as const })),
     findVisibleProblemById: vi.fn(async () => null),
     searchVisibleProblems: vi.fn(async () => []),
     revokeInvitation: vi.fn(async () => ({

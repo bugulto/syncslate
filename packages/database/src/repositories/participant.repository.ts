@@ -29,7 +29,11 @@ export async function listParticipantsBySession(
     .select()
     .from(sessionParticipants)
     .where(eq(sessionParticipants.sessionId, sessionId))
-    .orderBy(asc(sessionParticipants.createdAt), asc(sessionParticipants.id));
+    .orderBy(
+      asc(sessionParticipants.role),
+      asc(sessionParticipants.createdAt),
+      asc(sessionParticipants.id),
+    );
 }
 
 async function findParticipantByRole(
