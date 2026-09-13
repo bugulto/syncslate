@@ -33,6 +33,24 @@ const apiEnvSchema = z
       .min(300)
       .max(86_400)
       .default(1_800),
+    ROOM_AUTH_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(30_000)
+      .default(5_000),
+    ROOM_HEARTBEAT_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(5_000)
+      .max(120_000)
+      .default(30_000),
+    ROOM_DISCONNECT_GRACE_MS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(120_000)
+      .default(10_000),
   })
   .superRefine((environment, context) => {
     if (environment.GUEST_JWT_SECRET === environment.INVITE_TOKEN_PEPPER) {

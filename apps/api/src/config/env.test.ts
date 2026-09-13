@@ -24,6 +24,9 @@ describe("parseApiEnv", () => {
       CORS_ALLOWED_ORIGINS: ["http://localhost:3000"],
       DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
       GUEST_JWT_TTL_SECONDS: 1_800,
+      ROOM_AUTH_TIMEOUT_MS: 5_000,
+      ROOM_HEARTBEAT_INTERVAL_MS: 30_000,
+      ROOM_DISCONNECT_GRACE_MS: 10_000,
       ...validSupabaseEnv,
     });
   });
@@ -43,6 +46,9 @@ describe("parseApiEnv", () => {
         INVITE_TOKEN_PEPPER: "production-invitation-token-pepper",
         GUEST_JWT_SECRET: "production-guest-token-secret-123456789",
         GUEST_JWT_TTL_SECONDS: "900",
+        ROOM_AUTH_TIMEOUT_MS: "3000",
+        ROOM_HEARTBEAT_INTERVAL_MS: "15000",
+        ROOM_DISCONNECT_GRACE_MS: "5000",
       }),
     ).toEqual({
       NODE_ENV: "production",
@@ -59,6 +65,9 @@ describe("parseApiEnv", () => {
       INVITE_TOKEN_PEPPER: "production-invitation-token-pepper",
       GUEST_JWT_SECRET: "production-guest-token-secret-123456789",
       GUEST_JWT_TTL_SECONDS: 900,
+      ROOM_AUTH_TIMEOUT_MS: 3_000,
+      ROOM_HEARTBEAT_INTERVAL_MS: 15_000,
+      ROOM_DISCONNECT_GRACE_MS: 5_000,
     });
   });
 
@@ -150,5 +159,22 @@ describe("parseApiEnv", () => {
         GUEST_JWT_SECRET: databaseEnv.INVITE_TOKEN_PEPPER,
       }),
     ).toThrow("Must differ from INVITE_TOKEN_PEPPER");
+  });
+
+  it("rejects room timing settings outside their safe bounds", () => {
+    const baseEnv = {
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+      ...validSupabaseEnv,
+    };
+
+    expect(() =>
+      parseApiEnv({ ...baseEnv, ROOM_AUTH_TIMEOUT_MS: "999" }),
+    ).toThrow("Invalid API environment");
+    expect(() =>
+      parseApiEnv({ ...baseEnv, ROOM_HEARTBEAT_INTERVAL_MS: "4000" }),
+    ).toThrow("Invalid API environment");
+    expect(() =>
+      parseApiEnv({ ...baseEnv, ROOM_DISCONNECT_GRACE_MS: "120001" }),
+    ).toThrow("Invalid API environment");
   });
 });

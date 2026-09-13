@@ -37,6 +37,7 @@ const apiSupabaseAnonKey = requiredEnvironmentValue(
   "ANON_KEY",
 );
 const inviteTokenPepper = requiredEnvironmentValue("INVITE_TOKEN_PEPPER");
+const guestJwtSecret = requiredEnvironmentValue("GUEST_JWT_SECRET");
 const webSupabaseUrl = requiredEnvironmentValue(
   "NEXT_PUBLIC_SUPABASE_URL",
   "API_URL",
@@ -76,6 +77,7 @@ export default defineConfig({
         SUPABASE_URL: apiSupabaseUrl,
         SUPABASE_ANON_KEY: apiSupabaseAnonKey,
         INVITE_TOKEN_PEPPER: inviteTokenPepper,
+        GUEST_JWT_SECRET: guestJwtSecret,
       },
     },
     {

@@ -15,16 +15,19 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",
+    "@fastify/websocket": "^11.3.1",
     "@supabase/supabase-js": "^2.112.3",
     "@syncslate/contracts": "workspace:*",
     "@syncslate/database": "workspace:*",
     "fastify": "^5.10.0",
     "fastify-plugin": "^6.0.0",
     "jose": "^6.2.5",
+    "ws": "^8.21.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
+    "@types/ws": "^8.18.1",
     "tsx": "^4.23.1",
     "vitest": "^4.1.10"
   }

@@ -60,6 +60,7 @@ jobs:
     timeout-minutes: 15
     env:
       INVITE_TOKEN_PEPPER: ci-test-invitation-token-pepper-123456789
+      GUEST_JWT_SECRET: ci-test-guest-jwt-secret-123456789012345
       SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID: ci-placeholder-client-id
       SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET: ci-placeholder-client-secret
     steps:
