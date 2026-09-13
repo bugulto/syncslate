@@ -9,6 +9,7 @@ import {
 } from "@syncslate/contracts";
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   check,
   index,
   integer,
@@ -241,6 +242,49 @@ export const sessionParticipants = pgTable(
 
 export type SessionParticipant = typeof sessionParticipants.$inferSelect;
 export type NewSessionParticipant = typeof sessionParticipants.$inferInsert;
+
+export const sessionEvents = pgTable(
+  "session_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => interviewSessions.id, { onDelete: "cascade" }),
+    sequence: bigint("sequence", { mode: "number" }).notNull(),
+    actorParticipantId: uuid("actor_participant_id").references(
+      () => sessionParticipants.id,
+      { onDelete: "set null" },
+    ),
+    type: text("type").notNull(),
+    schemaVersion: integer("schema_version").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    occurredAt: timestamp("occurred_at", {
+      mode: "date",
+      withTimezone: true,
+    }).notNull(),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique("session_events_session_id_sequence_unique").on(
+      table.sessionId,
+      table.sequence,
+    ),
+    check("session_events_sequence_positive_check", sql`${table.sequence} > 0`),
+    check(
+      "session_events_schema_version_positive_check",
+      sql`${table.schemaVersion} > 0`,
+    ),
+    check(
+      "session_events_type_not_blank_check",
+      sql`length(btrim(${table.type})) > 0`,
+    ),
+  ],
+);
+
+export type SessionEvent = typeof sessionEvents.$inferSelect;
+export type NewSessionEvent = typeof sessionEvents.$inferInsert;
 
 export const sessionInvitations = pgTable(
   "session_invitations",

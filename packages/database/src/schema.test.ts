@@ -19,6 +19,7 @@ import {
   problemVisibilityEnum,
   programmingLanguageEnum,
   sessionInvitations,
+  sessionEvents,
   sessionParticipants,
   sessionStatusEnum,
 } from "./schema.js";
@@ -101,6 +102,57 @@ describe("session participants table", () => {
         "session_participants_display_name_not_blank_check",
       ]),
     );
+  });
+});
+
+describe("session events table", () => {
+  it("stores ordered, versioned event data", () => {
+    const config = getTableConfig(sessionEvents);
+
+    expect(config.name).toBe("session_events");
+    expect(sessionEvents.id.hasDefault).toBe(true);
+    expect(sessionEvents.sessionId.notNull).toBe(true);
+    expect(sessionEvents.sequence.notNull).toBe(true);
+    expect(sessionEvents.actorParticipantId.notNull).toBe(false);
+    expect(sessionEvents.type.notNull).toBe(true);
+    expect(sessionEvents.schemaVersion.notNull).toBe(true);
+    expect(sessionEvents.payload.notNull).toBe(true);
+    expect(sessionEvents.occurredAt.notNull).toBe(true);
+    expect(sessionEvents.createdAt.hasDefault).toBe(true);
+  });
+
+  it("enforces per-session ordering and event validity", () => {
+    const config = getTableConfig(sessionEvents);
+    const sequenceConstraint = config.uniqueConstraints.find(
+      (constraint) =>
+        constraint.getName() === "session_events_session_id_sequence_unique",
+    );
+
+    expect(sequenceConstraint?.columns.map((column) => column.name)).toEqual([
+      "session_id",
+      "sequence",
+    ]);
+    expect(config.checks.map((constraint) => constraint.name)).toEqual(
+      expect.arrayContaining([
+        "session_events_sequence_positive_check",
+        "session_events_schema_version_positive_check",
+        "session_events_type_not_blank_check",
+      ]),
+    );
+  });
+
+  it("cascades with sessions and preserves events when an actor is deleted", () => {
+    const foreignKeys = getTableConfig(sessionEvents).foreignKeys;
+    const sessionForeignKey = foreignKeys.find(
+      (foreignKey) => foreignKey.reference().columns[0]?.name === "session_id",
+    );
+    const actorForeignKey = foreignKeys.find(
+      (foreignKey) =>
+        foreignKey.reference().columns[0]?.name === "actor_participant_id",
+    );
+
+    expect(sessionForeignKey?.onDelete).toBe("cascade");
+    expect(actorForeignKey?.onDelete).toBe("set null");
   });
 });
 

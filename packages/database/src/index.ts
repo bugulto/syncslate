@@ -51,6 +51,15 @@ export {
   type SearchVisibleProblemsResult,
 } from "./repositories/problem.repository.js";
 export {
+  appendSessionEvent,
+  listSessionEvents,
+  type AppendSessionEventInput,
+  type AppendSessionEventResult,
+  type ListSessionEventsInput,
+  type ListSessionEventsResult,
+  type SessionEventRecord,
+} from "./repositories/session-event.repository.js";
+export {
   createSession,
   findAuthorizedRoomState,
   findSessionByIdForInterviewer,
@@ -76,6 +85,7 @@ export {
   type NewProfile,
   type NewSessionInvitation,
   type NewSessionParticipant,
+  type NewSessionEvent,
   participantRoleEnum,
   problemDifficultyEnum,
   problems,
@@ -87,6 +97,8 @@ export {
   type Profile,
   programmingLanguageEnum,
   sessionInvitations,
+  sessionEvents,
+  type SessionEvent,
   type SessionInvitation,
   sessionParticipants,
   type SessionParticipant,
