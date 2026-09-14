@@ -451,6 +451,13 @@ describe("session repository", () => {
         }),
       ).resolves.toBeNull();
       expect(fake.db.select).toHaveBeenCalledTimes(1);
+      expect(
+        compileSql(fake.accessQuery.where.mock.calls[0]?.[0]).params,
+      ).toEqual([
+        sessionId,
+        "50000000-0000-4000-8000-000000000099",
+        "candidate",
+      ]);
     });
   });
 });

@@ -289,6 +289,7 @@ export async function findAuthorizedRoomState(
             and(
               eq(sessionParticipants.sessionId, input.sessionId),
               eq(sessionParticipants.id, input.principal.participantId),
+              eq(sessionParticipants.role, "candidate"),
             ),
           )
           .limit(1);

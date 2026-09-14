@@ -105,6 +105,8 @@ export {
   presenceChangedEventSchema,
   roomClientCommandSchema,
   type RoomClientCommand,
+  roomCredentialSchema,
+  type RoomCredential,
   roomErrorCodeSchema,
   type RoomErrorCode,
   roomErrorEventSchema,

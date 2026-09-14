@@ -13,6 +13,24 @@ import {
 } from "./fields.js";
 import { participantSchema, presenceListSchema } from "./participants.js";
 import { candidateProblemSchema } from "./problems.js";
+import { guestAccessTokenSchema } from "./invitations.js";
+
+export const roomCredentialSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("user"),
+      accessToken: z.string().trim().min(1).max(16_384),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("guest"),
+      token: guestAccessTokenSchema,
+    })
+    .strict(),
+]);
+
+export type RoomCredential = z.infer<typeof roomCredentialSchema>;
 
 export const roomSessionSchema = z
   .object({
@@ -42,7 +60,12 @@ export const roomJoinCommandSchema = z
   .object({
     type: z.literal("room.join"),
     clientEventId: uuidSchema,
-    payload: z.object({ sessionId: uuidSchema }).strict(),
+    payload: z
+      .object({
+        sessionId: uuidSchema,
+        credential: roomCredentialSchema,
+      })
+      .strict(),
   })
   .strict();
 

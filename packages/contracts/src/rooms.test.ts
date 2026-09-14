@@ -78,11 +78,14 @@ describe("room state contracts", () => {
 });
 
 describe("room client commands", () => {
-  it("accepts a minimal room join command", () => {
+  it.each([
+    [{ kind: "user", accessToken: "supabase-access-token" }],
+    [{ kind: "guest", token: "g".repeat(32) }],
+  ] as const)("accepts a room join command with %j", (credential) => {
     const command = {
       type: "room.join" as const,
       clientEventId,
-      payload: { sessionId },
+      payload: { sessionId, credential },
     };
 
     expect(roomClientCommandSchema.parse(command)).toEqual(command);
@@ -96,7 +99,44 @@ describe("room client commands", () => {
         eventId,
         occurredAt,
         actorParticipantId: participantId,
+        payload: {
+          sessionId,
+          credential: { kind: "guest", token: "g".repeat(32) },
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects missing, oversized, and ambiguous credentials", () => {
+    expect(
+      roomClientCommandSchema.safeParse({
+        type: "room.join",
+        clientEventId,
         payload: { sessionId },
+      }).success,
+    ).toBe(false);
+    expect(
+      roomClientCommandSchema.safeParse({
+        type: "room.join",
+        clientEventId,
+        payload: {
+          sessionId,
+          credential: { kind: "user", accessToken: "x".repeat(16_385) },
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      roomClientCommandSchema.safeParse({
+        type: "room.join",
+        clientEventId,
+        payload: {
+          sessionId,
+          credential: {
+            kind: "guest",
+            token: "g".repeat(32),
+            accessToken: "unexpected",
+          },
+        },
       }).success,
     ).toBe(false);
   });
