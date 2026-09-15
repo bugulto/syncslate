@@ -1,14 +1,17 @@
 import {
   admitCandidateByTokenHash,
+  appendSessionEvent,
   checkDatabaseConnection,
   createDatabaseClient,
   createInvitationForOwnedSession,
   createProfileIfMissing,
   createSession,
+  findAuthorizedRoomState,
   findSessionByIdForInterviewer,
   findInvitationPreviewByTokenHash,
   findVisibleProblemById,
   findProfileByUserId,
+  hasSessionEvent,
   listSessionsByInterviewer,
   revokeInvitationForOwnedSession,
   searchVisibleProblems,
@@ -28,6 +31,9 @@ import {
   createInvitationRevocationService,
 } from "./modules/invitations/invitation.service.js";
 import { createSessionCreationService } from "./modules/sessions/session.service.js";
+import { createRoomAccessAuthorizer } from "./modules/realtime/room-access.js";
+import { createRoomAuthenticator } from "./modules/realtime/room-auth.js";
+import { createRoomEventWriter } from "./modules/realtime/room-event-writer.js";
 
 const env = parseApiEnv(process.env);
 const database = createDatabaseClient({
@@ -71,6 +77,18 @@ const revokeInvitation = createInvitationRevocationService({
   revokeInvitationForOwnedSession: (input) =>
     revokeInvitationForOwnedSession(database, input),
 });
+const authenticateRoom = createRoomAuthenticator({
+  verifyAccessToken,
+  verifyGuestToken: guestTokens.verify,
+  timeoutMs: env.ROOM_AUTH_TIMEOUT_MS,
+});
+const authorizeRoomJoin = createRoomAccessAuthorizer({
+  findAuthorizedRoomState: (input) => findAuthorizedRoomState(database, input),
+});
+const roomEventWriter = createRoomEventWriter({
+  appendSessionEvent: (input) => appendSessionEvent(database, input),
+  hasSessionEvent: (input) => hasSessionEvent(database, input),
+});
 const app = buildApp({
   logger: {
     level: env.LOG_LEVEL,
@@ -98,6 +116,15 @@ const app = buildApp({
   searchVisibleProblems: (input) => searchVisibleProblems(database, input),
   revokeInvitation,
   verifyAccessToken,
+  room: {
+    allowedOrigins: env.CORS_ALLOWED_ORIGINS,
+    authenticationTimeoutMs: env.ROOM_AUTH_TIMEOUT_MS,
+    heartbeatIntervalMs: env.ROOM_HEARTBEAT_INTERVAL_MS,
+    disconnectGraceMs: env.ROOM_DISCONNECT_GRACE_MS,
+    authenticateRoom,
+    authorizeRoomJoin,
+    eventWriter: roomEventWriter,
+  },
 });
 
 app.addHook("onClose", async () => {

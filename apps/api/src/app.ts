@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import websocket from "@fastify/websocket";
 import Fastify, { LogController, type FastifyServerOptions } from "fastify";
 
 import type { AccessTokenVerifier } from "./modules/auth/access-token-verifier.js";
@@ -11,6 +12,10 @@ import {
 } from "./modules/invitations/invitation.routes.js";
 import type { ProblemRepositoryDependencies } from "./modules/problems/problem.dependencies.js";
 import { problemRoutes } from "./modules/problems/problem.routes.js";
+import {
+  roomRoutes,
+  type RoomRoutesOptions,
+} from "./modules/realtime/room.routes.js";
 import {
   sessionRoutes,
   type SessionRoutesOptions,
@@ -30,6 +35,7 @@ type BuildAppOptions = Pick<FastifyServerOptions, "logger"> &
     bootstrapProfile: ProfileBootstrapService;
     corsAllowedOrigins: string[];
     verifyAccessToken: AccessTokenVerifier;
+    room?: RoomRoutesOptions;
   };
 
 export function buildApp(options: BuildAppOptions) {
@@ -43,6 +49,10 @@ export function buildApp(options: BuildAppOptions) {
 
   app.register(cors, {
     origin: options.corsAllowedOrigins,
+  });
+
+  app.register(websocket, {
+    options: { maxPayload: 32_768 },
   });
 
   app.register(authenticationPlugin, {
@@ -80,6 +90,13 @@ export function buildApp(options: BuildAppOptions) {
     findSessionByIdForInterviewer: options.findSessionByIdForInterviewer,
     listSessionsByInterviewer: options.listSessionsByInterviewer,
   });
+
+  if (options.room !== undefined) {
+    app.register(roomRoutes, {
+      prefix: "/api/v1",
+      ...options.room,
+    });
+  }
 
   return app;
 }
