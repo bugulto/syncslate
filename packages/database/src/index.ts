@@ -52,9 +52,11 @@ export {
 } from "./repositories/problem.repository.js";
 export {
   appendSessionEvent,
+  hasSessionEvent,
   listSessionEvents,
   type AppendSessionEventInput,
   type AppendSessionEventResult,
+  type HasSessionEventInput,
   type ListSessionEventsInput,
   type ListSessionEventsResult,
   type SessionEventRecord,

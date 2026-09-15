@@ -12,6 +12,7 @@ import {
 } from "../schema.js";
 import {
   appendSessionEvent,
+  hasSessionEvent,
   listSessionEvents,
 } from "./session-event.repository.js";
 import { createSession } from "./session.repository.js";
@@ -128,6 +129,20 @@ describe("session event repository integration", () => {
         occurredAt,
       });
       expect(nextEvent?.sequence).toBe(9);
+      await expect(
+        hasSessionEvent(client, {
+          sessionId: session.id,
+          actorParticipantId: interviewer.id,
+          type: "participant.reconnected",
+        }),
+      ).resolves.toBe(true);
+      await expect(
+        hasSessionEvent(client, {
+          sessionId: session.id,
+          actorParticipantId: interviewer.id,
+          type: "participant.joined",
+        }),
+      ).resolves.toBe(false);
 
       const storedEvents = await listSessionEvents(client, {
         sessionId: session.id,

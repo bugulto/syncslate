@@ -37,6 +37,12 @@ export type ListSessionEventsInput = {
 
 export type ListSessionEventsResult = SessionEventRecord[];
 
+export type HasSessionEventInput = {
+  sessionId: string;
+  actorParticipantId: string;
+  type: string;
+};
+
 function mapSessionEvent(
   event: typeof sessionEvents.$inferSelect,
 ): SessionEventRecord {
@@ -117,4 +123,23 @@ export async function listSessionEvents(
     .orderBy(asc(sessionEvents.sequence));
 
   return rows.map(mapSessionEvent);
+}
+
+export async function hasSessionEvent(
+  client: DatabaseClient,
+  input: HasSessionEventInput,
+): Promise<boolean> {
+  const [event] = await client.db
+    .select({ id: sessionEvents.id })
+    .from(sessionEvents)
+    .where(
+      and(
+        eq(sessionEvents.sessionId, input.sessionId),
+        eq(sessionEvents.actorParticipantId, input.actorParticipantId),
+        eq(sessionEvents.type, input.type),
+      ),
+    )
+    .limit(1);
+
+  return event !== undefined;
 }
