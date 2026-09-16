@@ -2,14 +2,24 @@
 
 import {
   createInvitationResponseSchema,
+  inspectInvitationResponseSchema,
+  invitationParamsSchema,
+  joinInvitationRequestSchema,
+  joinInvitationResponseSchema,
   revokeInvitationResponseSchema,
   sessionParamsSchema,
   type CreateInvitationResponse,
+  type InspectInvitationResponse,
+  type JoinInvitationRequest,
+  type JoinInvitationResponse,
   type RevokeInvitationResponse,
 } from "@syncslate/contracts";
 
-import { createBrowserApiClient } from "./browser";
-import type { AuthenticatedApiClient } from "./client";
+import {
+  createBrowserApiClient,
+  createPublicBrowserApiClient,
+} from "./browser";
+import type { AuthenticatedApiClient, PublicApiClient } from "./client";
 
 export async function createSessionInvitation(
   sessionId: string,
@@ -34,5 +44,35 @@ export async function revokeSessionInvitations(
     `/sessions/${params.sessionId}/invitations/revoke`,
     revokeInvitationResponseSchema,
     { method: "POST" },
+  );
+}
+
+export async function inspectInvitation(
+  rawToken: string,
+  apiClient: PublicApiClient = createPublicBrowserApiClient(),
+): Promise<InspectInvitationResponse> {
+  const params = invitationParamsSchema.parse({ rawToken });
+
+  return apiClient.request(
+    `/invitations/${params.rawToken}`,
+    inspectInvitationResponseSchema,
+  );
+}
+
+export async function joinInvitation(
+  rawToken: string,
+  input: JoinInvitationRequest,
+  apiClient: PublicApiClient = createPublicBrowserApiClient(),
+): Promise<JoinInvitationResponse> {
+  const params = invitationParamsSchema.parse({ rawToken });
+  const body = joinInvitationRequestSchema.parse(input);
+
+  return apiClient.request(
+    `/invitations/${params.rawToken}/join`,
+    joinInvitationResponseSchema,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
   );
 }

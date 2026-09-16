@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { describe, expect, it, vi } from "vitest";
 
-import { createAuthenticatedApiClient } from "./client";
+import { createAuthenticatedApiClient, createPublicApiClient } from "./client";
 import { AuthenticationRequiredError, InvalidApiResponseError } from "./errors";
 
 const responseSchema = z.object({ value: z.string() }).strict();
@@ -196,5 +196,76 @@ describe("createAuthenticatedApiClient", () => {
       message: "Unable to complete the request.",
     });
     await expect(request).rejects.not.toThrow("sensitive network detail");
+  });
+});
+
+describe("createPublicApiClient", () => {
+  it("requests public endpoints without an authorization header", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(createResponse({ value: "public" }));
+    const client = createPublicApiClient({
+      baseUrl: "http://localhost:4000/api/v1/",
+      fetch,
+    });
+
+    await expect(
+      client.request("/invitations/invite-token", responseSchema, {
+        headers: {
+          authorization: "Bearer must-not-be-forwarded",
+          "x-correlation-id": "correlation-id",
+        },
+      }),
+    ).resolves.toEqual({ value: "public" });
+
+    const [url, init] = fetch.mock.calls[0] ?? [];
+    const headers = new Headers(init?.headers);
+
+    expect(url).toBe("http://localhost:4000/api/v1/invitations/invite-token");
+    expect(headers.get("authorization")).toBeNull();
+    expect(headers.get("accept")).toBe("application/json");
+    expect(headers.get("x-correlation-id")).toBe("correlation-id");
+  });
+
+  it("returns structured 401 errors from public endpoints", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      createResponse(
+        {
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Invitation credentials are invalid.",
+            requestId: "request-123",
+          },
+        },
+        401,
+      ),
+    );
+    const client = createPublicApiClient({
+      baseUrl: "http://localhost:4000/api/v1",
+      fetch,
+    });
+
+    await expect(
+      client.request("/invitations/invite-token", responseSchema),
+    ).rejects.toMatchObject({
+      name: "ApiRequestError",
+      status: 401,
+      code: "UNAUTHORIZED",
+      requestId: "request-123",
+    });
+  });
+
+  it("validates successful public responses", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(createResponse({ value: 42 }));
+    const client = createPublicApiClient({
+      baseUrl: "http://localhost:4000/api/v1",
+      fetch,
+    });
+
+    await expect(
+      client.request("/invitations/invite-token", responseSchema),
+    ).rejects.toBeInstanceOf(InvalidApiResponseError);
   });
 });

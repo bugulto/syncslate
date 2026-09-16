@@ -2,7 +2,10 @@ import { z } from "zod";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createClient as createSupabaseClient } from "../supabase/client";
-import { createBrowserApiClient } from "./browser";
+import {
+  createBrowserApiClient,
+  createPublicBrowserApiClient,
+} from "./browser";
 
 const { getSession, supabaseClient } = vi.hoisted(() => {
   const getSession = vi.fn();
@@ -64,6 +67,26 @@ describe("createBrowserApiClient", () => {
 
     expect(url).toBe("http://localhost:4000/api/v1/me");
     expect(headers.get("authorization")).toBe("Bearer browser-access-token");
+  });
+
+  it("creates a public client without reading the Supabase session", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(createResponse({ status: "ok" }));
+    vi.stubGlobal("fetch", fetch);
+    const client = createPublicBrowserApiClient();
+
+    await expect(
+      client.request(
+        "/invitations/invite-token",
+        z.object({ status: z.literal("ok") }),
+      ),
+    ).resolves.toEqual({ status: "ok" });
+
+    expect(createSupabaseClient).not.toHaveBeenCalled();
+    expect(getSession).not.toHaveBeenCalled();
+    const [, init] = fetch.mock.calls[0] ?? [];
+    expect(new Headers(init?.headers).get("authorization")).toBeNull();
   });
 
   it("validates the public API environment before creating clients", () => {

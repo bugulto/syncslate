@@ -13,13 +13,21 @@ export type AuthenticatedApiClientOptions = {
   fetch: typeof globalThis.fetch;
 };
 
-export type AuthenticatedApiClient = {
+export type PublicApiClientOptions = {
+  baseUrl: string;
+  fetch: typeof globalThis.fetch;
+};
+
+export type ApiClient = {
   request: <T>(
     path: string,
     responseSchema: ZodType<T>,
     init?: RequestInit,
   ) => Promise<T>;
 };
+
+export type AuthenticatedApiClient = ApiClient;
+export type PublicApiClient = ApiClient;
 
 function normalizeBaseUrl(baseUrl: string): string {
   try {
@@ -47,23 +55,29 @@ function buildRequestUrl(baseUrl: string, path: string): string {
   return `${baseUrl}${path}`;
 }
 
-export function createAuthenticatedApiClient(
-  options: AuthenticatedApiClientOptions,
-): AuthenticatedApiClient {
+function createApiClient(
+  options: PublicApiClientOptions,
+  getAccessToken?: () => Promise<string | null>,
+): ApiClient {
   const baseUrl = normalizeBaseUrl(options.baseUrl);
 
   return {
     async request(path, responseSchema, init = {}) {
       const url = buildRequestUrl(baseUrl, path);
-      const accessToken = await options.getAccessToken();
-
-      if (!accessToken) {
-        throw new AuthenticationRequiredError();
-      }
-
       const headers = new Headers(init.headers);
       headers.set("accept", "application/json");
-      headers.set("authorization", `Bearer ${accessToken}`);
+
+      if (getAccessToken === undefined) {
+        headers.delete("authorization");
+      } else {
+        const accessToken = await getAccessToken();
+
+        if (!accessToken) {
+          throw new AuthenticationRequiredError();
+        }
+
+        headers.set("authorization", `Bearer ${accessToken}`);
+      }
 
       if (init.body !== undefined && !headers.has("content-type")) {
         headers.set("content-type", "application/json");
@@ -80,7 +94,7 @@ export function createAuthenticatedApiClient(
         throw new ApiRequestError({ status: 0 });
       }
 
-      if (response.status === 401) {
+      if (response.status === 401 && getAccessToken !== undefined) {
         throw new AuthenticationRequiredError();
       }
 
@@ -114,4 +128,16 @@ export function createAuthenticatedApiClient(
       return parsedResponse.data;
     },
   };
+}
+
+export function createAuthenticatedApiClient(
+  options: AuthenticatedApiClientOptions,
+): AuthenticatedApiClient {
+  return createApiClient(options, options.getAccessToken);
+}
+
+export function createPublicApiClient(
+  options: PublicApiClientOptions,
+): PublicApiClient {
+  return createApiClient(options);
 }

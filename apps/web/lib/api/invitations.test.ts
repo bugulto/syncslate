@@ -1,14 +1,20 @@
 import {
   createInvitationResponseSchema,
+  inspectInvitationResponseSchema,
+  joinInvitationResponseSchema,
   revokeInvitationResponseSchema,
   type CreateInvitationResponse,
+  type InspectInvitationResponse,
+  type JoinInvitationResponse,
   type RevokeInvitationResponse,
 } from "@syncslate/contracts";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AuthenticatedApiClient } from "./client";
+import type { ApiClient } from "./client";
 import {
   createSessionInvitation,
+  inspectInvitation,
+  joinInvitation,
   revokeSessionInvitations,
 } from "./invitations";
 
@@ -37,8 +43,8 @@ const revokedInvitation: RevokeInvitationResponse = {
 
 function createMockApiClient(response: unknown) {
   const request = vi.fn(async () => response);
-  const apiClient: AuthenticatedApiClient = {
-    request: request as AuthenticatedApiClient["request"],
+  const apiClient: ApiClient = {
+    request: request as ApiClient["request"],
   };
 
   return { apiClient, request };
@@ -72,8 +78,8 @@ describe("createSessionInvitation", () => {
     const request = vi.fn(async () => {
       throw failure;
     });
-    const apiClient: AuthenticatedApiClient = {
-      request: request as AuthenticatedApiClient["request"],
+    const apiClient: ApiClient = {
+      request: request as ApiClient["request"],
     };
 
     await expect(createSessionInvitation(sessionId, apiClient)).rejects.toBe(
@@ -110,12 +116,95 @@ describe("revokeSessionInvitations", () => {
     const request = vi.fn(async () => {
       throw failure;
     });
-    const apiClient: AuthenticatedApiClient = {
-      request: request as AuthenticatedApiClient["request"],
+    const apiClient: ApiClient = {
+      request: request as ApiClient["request"],
     };
 
     await expect(revokeSessionInvitations(sessionId, apiClient)).rejects.toBe(
       failure,
     );
+  });
+});
+
+const invitationPreview: InspectInvitationResponse = {
+  invitation: {
+    session: {
+      title: "Frontend interview",
+      status: "waiting",
+      language: "typescript",
+      durationSeconds: 3_600,
+      problem: {
+        title: "Two Sum",
+        difficulty: "easy",
+      },
+    },
+    expiresAt: "2026-09-20T12:00:00.000Z",
+  },
+};
+
+const joinedInvitation: JoinInvitationResponse = {
+  participant: {
+    id: "50000000-0000-4000-8000-000000000001",
+    displayName: "Candidate",
+    role: "candidate",
+  },
+  guestAccessToken: "g".repeat(64),
+  expiresAt: "2026-09-19T13:00:00.000Z",
+};
+
+describe("inspectInvitation", () => {
+  it("inspects a validated invitation through the public client", async () => {
+    const { apiClient, request } = createMockApiClient(invitationPreview);
+
+    await expect(inspectInvitation(rawToken, apiClient)).resolves.toEqual(
+      invitationPreview,
+    );
+    expect(request).toHaveBeenCalledWith(
+      `/invitations/${rawToken}`,
+      inspectInvitationResponseSchema,
+    );
+  });
+
+  it("rejects malformed tokens before making a request", async () => {
+    const { apiClient, request } = createMockApiClient(invitationPreview);
+
+    await expect(inspectInvitation("invalid", apiClient)).rejects.toThrow();
+    expect(request).not.toHaveBeenCalled();
+  });
+});
+
+describe("joinInvitation", () => {
+  it("submits a validated display name through the public client", async () => {
+    const { apiClient, request } = createMockApiClient(joinedInvitation);
+
+    await expect(
+      joinInvitation(rawToken, { displayName: "  Candidate  " }, apiClient),
+    ).resolves.toEqual(joinedInvitation);
+    expect(request).toHaveBeenCalledWith(
+      `/invitations/${rawToken}/join`,
+      joinInvitationResponseSchema,
+      {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Candidate" }),
+      },
+    );
+  });
+
+  it("rejects malformed input before making a request", async () => {
+    const { apiClient, request } = createMockApiClient(joinedInvitation);
+
+    await expect(
+      joinInvitation(rawToken, { displayName: "x" }, apiClient),
+    ).rejects.toThrow();
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed tokens before making a request", async () => {
+    const { apiClient, request } = createMockApiClient(joinedInvitation);
+
+    await expect(
+      joinInvitation("invalid", { displayName: "Candidate" }, apiClient),
+    ).rejects.toThrow();
+    expect(request).not.toHaveBeenCalled();
   });
 });
